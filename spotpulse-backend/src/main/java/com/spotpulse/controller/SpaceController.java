@@ -5,7 +5,8 @@ import com.spotpulse.dto.SpaceDto;
 import com.spotpulse.service.SpaceService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
+import com.spotpulse.pagination.PaginationSupport;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,17 +21,18 @@ public class SpaceController {
 
     /** GET /api/spaces?page=0&size=10&sort=name,asc  або  ?city=Kyiv  або  ?search=cowork */
     @GetMapping
-    public Page<SpaceDto> getAll(
+    public Object getAll(
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String search,
-            Pageable pageable) {
+            Pageable pageable, HttpServletRequest request) {
+        pageable = PaginationSupport.pageable(request, pageable);
         if (search != null && !search.isBlank()) {
-            return spaceService.search(search, pageable);
+            return PaginationSupport.response(spaceService.search(search, pageable), request);
         }
         if (city != null && !city.isBlank()) {
-            return spaceService.getByCity(city, pageable);
+            return PaginationSupport.response(spaceService.getByCity(city, pageable), request);
         }
-        return spaceService.getAll(pageable);
+        return PaginationSupport.response(spaceService.getAll(pageable), request);
     }
 
     /** GET /api/spaces/{id} */

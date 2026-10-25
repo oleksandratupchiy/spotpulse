@@ -5,7 +5,8 @@ import com.spotpulse.dto.RoomDto;
 import com.spotpulse.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
+import com.spotpulse.pagination.PaginationSupport;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,11 +21,12 @@ public class RoomController {
 
     /** GET /api/rooms?page=0&size=10  або  GET /api/rooms?spaceId=1 */
     @GetMapping
-    public Page<RoomDto> getAll(@RequestParam(required = false) Long spaceId, Pageable pageable) {
+    public Object getAll(@RequestParam(required = false) Long spaceId, Pageable pageable, HttpServletRequest request) {
+        pageable = PaginationSupport.pageable(request, pageable);
         if (spaceId != null) {
-            return roomService.getBySpaceId(spaceId, pageable);
+            return PaginationSupport.response(roomService.getBySpaceId(spaceId, pageable), request);
         }
-        return roomService.getAll(pageable);
+        return PaginationSupport.response(roomService.getAll(pageable), request);
     }
 
     /** GET /api/rooms/{id} */

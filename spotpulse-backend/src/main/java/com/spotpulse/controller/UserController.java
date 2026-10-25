@@ -5,7 +5,8 @@ import com.spotpulse.dto.UserDto;
 import com.spotpulse.service.UserService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
+import com.spotpulse.pagination.PaginationSupport;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +21,9 @@ public class UserController {
 
     /** GET /api/users?page=0&size=10 */
     @GetMapping
-    public Page<UserDto> getAll(Pageable pageable) {
-        return userService.getAll(pageable);
+    public Object getAll(Pageable pageable, HttpServletRequest request) {
+        pageable = PaginationSupport.pageable(request, pageable);
+        return PaginationSupport.response(userService.getAll(pageable), request);
     }
 
     /** GET /api/users/{id} */

@@ -6,7 +6,8 @@ import com.spotpulse.model.enums.BookingStatus;
 import com.spotpulse.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
+import com.spotpulse.pagination.PaginationSupport;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,12 +22,13 @@ public class BookingController {
 
     /** GET /api/bookings?page=0&size=10  або  ?userId=1  або  ?roomId=2  або  ?status=CONFIRMED */
     @GetMapping
-    public Page<BookingDto> getAll(
+    public Object getAll(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long roomId,
             @RequestParam(required = false) BookingStatus status,
-            Pageable pageable) {
-        return bookingService.getAll(userId, roomId, status, pageable);
+            Pageable pageable, HttpServletRequest request) {
+        pageable = PaginationSupport.pageable(request, pageable);
+        return PaginationSupport.response(bookingService.getAll(userId, roomId, status, pageable), request);
     }
 
     /** GET /api/bookings/{id} */
