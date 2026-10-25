@@ -9,11 +9,14 @@ import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 @Service
 @Validated
@@ -21,7 +24,17 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class SpaceService {
 
+    public static final int SITEMAP_PAGE_SIZE = 1000;
+
     private final SpaceRepository spaceRepository;
+
+    public long countSpaces() {
+        return spaceRepository.count();
+    }
+
+    public List<Long> getSitemapIds(int page) {
+        return spaceRepository.findSitemapIds(PageRequest.of(page, SITEMAP_PAGE_SIZE));
+    }
 
     public Page<SpaceDto> getAll(Pageable pageable) {
         return spaceRepository.findAll(pageable)

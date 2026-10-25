@@ -25,4 +25,13 @@ public class SpaceCreateDto {
     private String city;
     @Size(max = 255)
     private String imageUrl;
+
+    @Email
+    @Size(max = 254)
+    private String contactEmail;
+
+    // Preserve existing callers and REST requests that omit contact information.
+    public SpaceCreateDto(String name, String description, String address, String city, String imageUrl) {
+        this(name, description, address, city, imageUrl, null);
+    }
 }

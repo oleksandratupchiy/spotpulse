@@ -25,6 +25,7 @@ public final class EntityMapper {
         dto.setAddress(space.getAddress());
         dto.setCity(space.getCity());
         dto.setImageUrl(space.getImageUrl());
+        dto.setContactEmail(space.getContactEmail());
 
         List<RoomDto> roomDtos = space.getRooms() != null
                 ? space.getRooms().stream().map(EntityMapper::toDto).toList()
@@ -41,6 +42,7 @@ public final class EntityMapper {
         space.setAddress(dto.getAddress());
         space.setCity(dto.getCity());
         space.setImageUrl(dto.getImageUrl());
+        space.setContactEmail(dto.getContactEmail());
         return space;
     }
 
@@ -50,6 +52,7 @@ public final class EntityMapper {
         space.setAddress(dto.getAddress());
         space.setCity(dto.getCity());
         space.setImageUrl(dto.getImageUrl());
+        space.setContactEmail(dto.getContactEmail());
     }
 
     // ───────────────────── Room ──────────────────────

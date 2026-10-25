@@ -33,6 +33,9 @@ public class Space {
     /** URL-посилання на зображення простору (вимога C1) */
     private String imageUrl;
 
+    @Column(length = 254)
+    private String contactEmail;
+
     @OneToMany(mappedBy = "space", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Room> rooms = new ArrayList<>();
 }

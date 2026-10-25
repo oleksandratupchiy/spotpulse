@@ -3,6 +3,7 @@ package com.spotpulse.controller;
 import com.spotpulse.dto.SpaceCreateDto;
 import com.spotpulse.dto.SpaceDto;
 import com.spotpulse.service.SpaceService;
+import com.spotpulse.seo.SpaceSeo;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,16 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SpaceMvcController {
     private final SpaceService spaceService;
+    private final SpaceSeo spaceSeo;
+
+    @GetMapping("/{id}")
+    public String detail(@PathVariable Long id, Model model) {
+        // DTO mapping happens inside the service transaction, with no lazy entities in the view.
+        SpaceDto space = spaceService.getById(id);
+        model.addAttribute("space", space);
+        model.addAttribute("seo", spaceSeo.metadata(space));
+        return "spaces/detail";
+    }
 
     @GetMapping
     public String list(Model model) {
@@ -34,7 +45,7 @@ public class SpaceMvcController {
     public String editForm(@PathVariable Long id, Model model) {
         SpaceDto space = spaceService.getById(id);
         model.addAttribute("space", new SpaceCreateDto(space.getName(), space.getDescription(),
-                space.getAddress(), space.getCity(), space.getImageUrl()));
+                space.getAddress(), space.getCity(), space.getImageUrl(), space.getContactEmail()));
         model.addAttribute("spaceId", id);
         model.addAttribute("isEdit", true);
         return "spaces/form";

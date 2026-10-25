@@ -16,4 +16,5 @@ public class SpaceDto {
     private String city;
     private String imageUrl;
     private List<RoomDto> rooms;
+    private String contactEmail;
 }

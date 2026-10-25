@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="robots" content="noindex, nofollow"/>
     <title th:text="${isEdit} ? 'Редагувати простір — SpotPulse' : 'Новий простір — SpotPulse'">
         Форма — SpotPulse
     </title>
@@ -83,6 +84,13 @@
                            placeholder="https://example.com/photo.jpg"
                            oninput="updatePreview(this.value)"/>
                     <div class="form-text">Вставте посилання на зображення простору</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="contactEmail" class="form-label fw-semibold">Контактний email</label>
+                    <input type="email" class="form-control" id="contactEmail" maxlength="254"
+                           th:field="*{contactEmail}" th:errorclass="is-invalid"/>
+                    <div class="form-text">Необов'язково. Публічна адреса для запитів про простір і бронювання.</div>
                 </div>
 
                 <!-- Image preview -->

@@ -63,7 +63,9 @@
                 </div>
 
                 <div class="card-body d-flex flex-column">
-                    <h5 class="card-title fw-semibold" th:text="${space.name}">Space</h5>
+                    <h2 class="h5 card-title fw-semibold">
+                        <a class="text-decoration-none" th:href="@{/spaces/{id}(id=${space.id})}" th:text="${space.name}">Space</a>
+                    </h2>
                     <p class="card-text text-muted small flex-grow-1"
                        th:text="${#strings.abbreviate(space.description, 100)}">Description</p>
                     <p class="mb-1 small">
@@ -74,6 +76,8 @@
                         <i class="bi bi-pin-map text-primary me-1"></i>
                         <span th:text="${space.city}">City</span>
                     </p>
+                    <a th:href="@{/spaces/{id}(id=${space.id})}" class="btn btn-primary mb-3"
+                       th:attr="aria-label=${'Докладніше про ' + space.name}">Докладніше</a>
                     <div class="d-flex gap-2 mt-auto">
                         <a th:href="@{'/spaces/' + ${space.id} + '/edit'}"
                            class="btn btn-sm btn-outline-primary flex-fill">

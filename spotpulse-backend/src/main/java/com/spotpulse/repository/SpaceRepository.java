@@ -7,7 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface SpaceRepository extends JpaRepository<Space, Long> {
+
+    @Query("select s.id from Space s order by s.id")
+    List<Long> findSitemapIds(Pageable pageable);
 
     Page<Space> findByCity(String city, Pageable pageable);
 

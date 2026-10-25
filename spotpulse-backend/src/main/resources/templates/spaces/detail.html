@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="uk">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${seo.title}">SpotPulse</title>
+    <meta name="description" th:content="${seo.description}"/>
+    <meta name="robots" th:content="${seo.robots}"/>
+    <link th:if="${seo.canonicalUrl != null}" rel="canonical" th:href="${seo.canonicalUrl}"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:site_name" content="SpotPulse"/>
+    <meta property="og:locale" content="uk_UA"/>
+    <meta property="og:title" th:content="${seo.title}"/>
+    <meta property="og:description" th:content="${seo.description}"/>
+    <meta th:if="${seo.canonicalUrl != null}" property="og:url" th:content="${seo.canonicalUrl}"/>
+    <meta th:if="${seo.imageUrl != null and #strings.startsWith(seo.imageUrl, 'http')}" property="og:image" th:content="${seo.imageUrl}"/>
+    <meta th:if="${seo.imageUrl != null and #strings.startsWith(seo.imageUrl, 'http')}" property="og:image:alt"
+          th:content="${'Коворкінг ' + space.name + ', ' + space.city}"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+    <link th:href="@{/css/space-detail.css}" rel="stylesheet"/>
+    <script type="application/ld+json" th:utext="${seo.structuredData}">{}</script>
+</head>
+<body>
+<a href="#main" class="visually-hidden-focusable skip-link">До основного вмісту</a>
+<header class="brand-bar">
+    <nav class="navbar navbar-dark" aria-label="Головна навігація">
+        <div class="container py-2">
+            <a class="navbar-brand fw-bold" th:href="@{/spaces}"><i class="bi bi-geo-alt-fill me-2" aria-hidden="true"></i>SpotPulse</a>
+            <a class="text-white text-decoration-none" th:href="@{/spaces}">Усі простори <span aria-hidden="true">↗</span></a>
+        </div>
+    </nav>
+</header>
+<main id="main" class="container py-4 py-lg-5">
+    <nav aria-label="Навігаційний ланцюжок" class="mb-4">
+        <ol class="breadcrumb small mb-0">
+            <li class="breadcrumb-item"><a th:href="@{/spaces}">Простори</a></li>
+            <li class="breadcrumb-item active" aria-current="page" th:text="${space.name}">Простір</li>
+        </ol>
+    </nav>
+    <div class="row g-4 g-xl-5 align-items-start">
+        <article class="col-lg-8">
+            <div class="mb-4">
+                <p class="eyebrow mb-2">Коворкінг · <span th:text="${space.city}">Місто</span></p>
+                <h1 class="display-5 fw-bold mb-3" th:text="${space.name}">Назва простору</h1>
+                <p class="text-secondary mb-4"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>
+                    <span th:text="${space.address + ', ' + space.city}">Адреса</span></p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary px-4" href="#rooms">Переглянути кімнати <span aria-hidden="true">↓</span></a>
+                    <a class="btn btn-outline-secondary px-4" href="#location">Розташування</a>
+                </div>
+            </div>
+            <figure class="hero-media mb-4 mb-lg-5">
+                <img th:if="${seo.imageUrl != null}" th:src="${seo.imageUrl}" width="1200" height="700"
+                     fetchpriority="high" class="hero-image" th:alt="${'Коворкінг ' + space.name + ', ' + space.city}"
+                     onerror="this.hidden=true;this.nextElementSibling.hidden=false;"/>
+                <div class="image-placeholder" th:hidden="${seo.imageUrl != null}" role="img"
+                     th:attr="aria-label=${'Зображення простору ' + space.name + ' ще не додано'}">
+                    <i class="bi bi-buildings" aria-hidden="true"></i>
+                    <span>Знайомство починається тут</span>
+                    <small>Зображення простору ще не додано</small>
+                </div>
+            </figure>
+            <section id="about" aria-labelledby="about-title" class="content-section">
+                <p class="eyebrow">Ваш наступний робочий простір</p>
+                <h2 id="about-title" class="h3 fw-bold mb-3">Про простір</h2>
+                <p class="description text-secondary" th:if="${space.description != null and !space.description.isBlank()}"
+                   th:text="${space.description}">Опис</p>
+                <p class="text-secondary" th:unless="${space.description != null and !space.description.isBlank()}">
+                    Власник ще не додав опис. Перегляньте розташування та кімнати нижче.</p>
+            </section>
+            <section id="rooms" aria-labelledby="rooms-title" class="content-section">
+                <div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+                    <h2 id="rooms-title" class="h3 fw-bold mb-0">Кімнати простору</h2>
+                    <span class="badge rounded-pill room-count" th:text="${#lists.size(space.rooms)} + ' кімнат'">0 кімнат</span>
+                </div>
+                <p class="text-secondary small">Порівняйте місткість і погодинні тарифи. Наявність на потрібні дати уточнюється під час бронювання.</p>
+                <div th:if="${#lists.isEmpty(space.rooms)}" class="empty-rooms p-4 rounded-4">
+                    <i class="bi bi-door-open fs-2 text-secondary" aria-hidden="true"></i>
+                    <h3 class="h5 mt-3">Кімнати ще не додано</h3>
+                    <p class="text-secondary mb-0">Інформація про кімнати цього простору з'явиться тут, коли її додасть власник.</p>
+                </div>
+                <div class="row g-3" th:unless="${#lists.isEmpty(space.rooms)}">
+                    <div class="col-md-6" th:each="room : ${space.rooms}">
+                        <section class="card room-card h-100" th:attr="aria-labelledby=${'room-title-' + room.id}">
+                            <div class="card-body p-4">
+                                <i class="bi bi-door-open room-icon" aria-hidden="true"></i>
+                                <h3 class="h5 fw-bold mt-3" th:id="${'room-title-' + room.id}" th:text="${room.name}">Кімната</h3>
+                                <p class="text-secondary"><i class="bi bi-people me-1" aria-hidden="true"></i>
+                                    Місткість: <span th:text="${room.capacity}">0</span> осіб</p>
+                                <p class="mb-1"><strong class="fs-4" th:text="${#numbers.formatDecimal(room.hourlyRate, 1, 2)}">0.00</strong> / годину</p>
+                                <p class="small text-secondary mb-0">Валюта в даних простору не вказана.</p>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+            <section id="location" aria-labelledby="location-title" class="content-section mb-0">
+                <h2 id="location-title" class="h3 fw-bold mb-3">Де нас знайти</h2>
+                <div class="location-card p-4 rounded-4 d-flex gap-3">
+                    <i class="bi bi-geo-alt fs-2" aria-hidden="true"></i>
+                    <address class="mb-0">
+                        <strong class="d-block mb-1" th:text="${space.city}">Місто</strong>
+                        <span class="text-secondary" th:text="${space.address}">Адреса</span>
+                    </address>
+                </div>
+            </section>
+        </article>
+        <aside class="col-lg-4 contact-column" aria-label="Контактна інформація">
+            <section id="contact" class="contact-panel card" aria-labelledby="contact-title">
+                <div class="card-body p-4">
+                    <p class="eyebrow">Будьмо на зв'язку</p>
+                    <h2 id="contact-title" class="h4 fw-bold mb-3">Контакти простору</h2>
+                    <p class="small text-secondary">Поставте запитання про простір або уточніть деталі бронювання.</p>
+                    <th:block th:if="${space.contactEmail != null and !space.contactEmail.isBlank()}">
+                        <a class="contact-email d-block mb-3" th:href="${'mailto:' + space.contactEmail}" th:text="${space.contactEmail}">Email</a>
+                        <a class="btn btn-primary w-100" th:href="${'mailto:' + space.contactEmail}">Написати простору <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i></a>
+                    </th:block>
+                    <p class="contact-unavailable small rounded-3 p-3" th:unless="${space.contactEmail != null and !space.contactEmail.isBlank()}">
+                        Власник ще не додав контактний email. Зв'язок із простором поки недоступний.</p>
+                    <hr class="my-4"/>
+                    <p class="fw-semibold mb-1" th:text="${space.name}">Простір</p>
+                    <p class="small text-secondary mb-3" th:text="${space.address + ', ' + space.city}">Адреса</p>
+                    <a href="#rooms" class="small">Переглянути всі кімнати</a>
+                </div>
+            </section>
+        </aside>
+    </div>
+</main>
+<footer class="container py-5 text-secondary small">
+    <div class="border-top pt-4 d-flex flex-wrap gap-3 justify-content-between">
+        <span>SpotPulse · Простір для вашого робочого дня</span>
+        <a th:href="@{/spaces}">Повернутися до просторів</a>
+    </div>
+</footer>
+<div class="mobile-contact d-lg-none" aria-label="Швидкий зв'язок">
+    <div class="container d-flex align-items-center justify-content-between gap-3">
+        <span class="small fw-semibold text-truncate" th:text="${space.name}">Простір</span>
+        <a class="btn btn-primary flex-shrink-0" th:href="${space.contactEmail != null and !space.contactEmail.isBlank() ? 'mailto:' + space.contactEmail : '#contact'}"
+           th:text="${space.contactEmail != null and !space.contactEmail.isBlank() ? 'Написати простору' : 'Контакти'}">Контакти</a>
+    </div>
+</div>
+</body>
+</html>
