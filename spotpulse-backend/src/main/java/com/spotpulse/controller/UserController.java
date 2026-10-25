@@ -4,6 +4,7 @@ import com.spotpulse.dto.UserCreateDto;
 import com.spotpulse.dto.UserDto;
 import com.spotpulse.service.UserService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -31,14 +32,14 @@ public class UserController {
 
     /** POST /api/users */
     @PostMapping
-    public ResponseEntity<UserDto> create(@RequestBody UserCreateDto dto) {
+    public ResponseEntity<UserDto> create(@Valid @RequestBody UserCreateDto dto) {
         UserDto created = userService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     /** PUT /api/users/{id} */
     @PutMapping("/{id}")
-    public UserDto update(@PathVariable Long id, @RequestBody UserCreateDto dto) {
+    public UserDto update(@PathVariable Long id, @Valid @RequestBody UserCreateDto dto) {
         return userService.update(id, dto);
     }
 

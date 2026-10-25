@@ -1,78 +1,71 @@
 package com.spotpulse.controller;
 
-import com.spotpulse.model.Space;
-import com.spotpulse.repository.SpaceRepository;
+import com.spotpulse.dto.SpaceCreateDto;
+import com.spotpulse.dto.SpaceDto;
+import com.spotpulse.service.SpaceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-
-/**
- * MVC-контролер для Thymeleaf-шаблонів (вимога C1).
- * Повертає HTML-сторінки зі списком та формою редагування Space.
- */
 @Controller
 @RequestMapping("/spaces")
 @RequiredArgsConstructor
 public class SpaceMvcController {
+    private final SpaceService spaceService;
 
-    private final SpaceRepository spaceRepository;
-
-    /** Список усіх просторів */
     @GetMapping
     public String list(Model model) {
-        List<Space> spaces = spaceRepository.findAll();
-        model.addAttribute("spaces", spaces);
+        model.addAttribute("spaces", spaceService.getAll(Pageable.unpaged()).getContent());
         return "spaces/list";
     }
 
-    /** Форма створення нового простору */
     @GetMapping("/new")
     public String createForm(Model model) {
-        model.addAttribute("space", new Space());
+        model.addAttribute("space", new SpaceCreateDto());
         model.addAttribute("isEdit", false);
         return "spaces/form";
     }
 
-    /** Форма редагування існуючого простору */
     @GetMapping("/{id}/edit")
     public String editForm(@PathVariable Long id, Model model) {
-        Space space = spaceRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
-        model.addAttribute("space", space);
+        SpaceDto space = spaceService.getById(id);
+        model.addAttribute("space", new SpaceCreateDto(space.getName(), space.getDescription(),
+                space.getAddress(), space.getCity(), space.getImageUrl()));
+        model.addAttribute("spaceId", id);
         model.addAttribute("isEdit", true);
         return "spaces/form";
     }
 
-    /** Збереження нового простору (POST) */
     @PostMapping
-    public String save(@ModelAttribute Space space) {
-        spaceRepository.save(space);
+    public String save(@Valid @ModelAttribute("space") SpaceCreateDto space, BindingResult errors, Model model) {
+        if (errors.hasErrors()) {
+            model.addAttribute("isEdit", false);
+            return "spaces/form";
+        }
+        spaceService.create(space);
         return "redirect:/spaces";
     }
 
-    /** Оновлення існуючого простору (POST) */
     @PostMapping("/{id}")
-    public String update(@PathVariable Long id, @ModelAttribute Space formSpace) {
-        Space space = spaceRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
-        space.setName(formSpace.getName());
-        space.setDescription(formSpace.getDescription());
-        space.setAddress(formSpace.getAddress());
-        space.setCity(formSpace.getCity());
-        space.setImageUrl(formSpace.getImageUrl());
-        spaceRepository.save(space);
+    public String update(@PathVariable Long id, @Valid @ModelAttribute("space") SpaceCreateDto space,
+                         BindingResult errors, Model model) {
+        spaceService.getById(id);
+        if (errors.hasErrors()) {
+            model.addAttribute("spaceId", id);
+            model.addAttribute("isEdit", true);
+            return "spaces/form";
+        }
+        spaceService.update(id, space);
         return "redirect:/spaces";
     }
 
-    /** Видалення простору */
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id) {
-        spaceRepository.deleteById(id);
+        spaceService.delete(id);
         return "redirect:/spaces";
     }
 }

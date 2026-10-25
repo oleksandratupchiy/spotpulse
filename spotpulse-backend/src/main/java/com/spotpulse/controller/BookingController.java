@@ -5,6 +5,7 @@ import com.spotpulse.dto.BookingDto;
 import com.spotpulse.model.enums.BookingStatus;
 import com.spotpulse.service.BookingService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -36,14 +37,14 @@ public class BookingController {
 
     /** POST /api/bookings */
     @PostMapping
-    public ResponseEntity<BookingDto> create(@RequestBody BookingCreateDto dto) {
+    public ResponseEntity<BookingDto> create(@Valid @RequestBody BookingCreateDto dto) {
         BookingDto created = bookingService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     /** PUT /api/bookings/{id} */
     @PutMapping("/{id}")
-    public BookingDto update(@PathVariable Long id, @RequestBody BookingCreateDto dto) {
+    public BookingDto update(@PathVariable Long id, @Valid @RequestBody BookingCreateDto dto) {
         return bookingService.update(id, dto);
     }
 

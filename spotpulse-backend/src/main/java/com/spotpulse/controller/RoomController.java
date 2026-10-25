@@ -4,6 +4,7 @@ import com.spotpulse.dto.RoomCreateDto;
 import com.spotpulse.dto.RoomDto;
 import com.spotpulse.service.RoomService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -34,14 +35,14 @@ public class RoomController {
 
     /** POST /api/rooms */
     @PostMapping
-    public ResponseEntity<RoomDto> create(@RequestBody RoomCreateDto dto) {
+    public ResponseEntity<RoomDto> create(@Valid @RequestBody RoomCreateDto dto) {
         RoomDto created = roomService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     /** PUT /api/rooms/{id} */
     @PutMapping("/{id}")
-    public RoomDto update(@PathVariable Long id, @RequestBody RoomCreateDto dto) {
+    public RoomDto update(@PathVariable Long id, @Valid @RequestBody RoomCreateDto dto) {
         return roomService.update(id, dto);
     }
 

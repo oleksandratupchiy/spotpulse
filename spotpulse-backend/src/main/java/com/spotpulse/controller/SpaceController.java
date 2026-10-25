@@ -4,6 +4,7 @@ import com.spotpulse.dto.SpaceCreateDto;
 import com.spotpulse.dto.SpaceDto;
 import com.spotpulse.service.SpaceService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -40,14 +41,14 @@ public class SpaceController {
 
     /** POST /api/spaces */
     @PostMapping
-    public ResponseEntity<SpaceDto> create(@RequestBody SpaceCreateDto dto) {
+    public ResponseEntity<SpaceDto> create(@Valid @RequestBody SpaceCreateDto dto) {
         SpaceDto created = spaceService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     /** PUT /api/spaces/{id} */
     @PutMapping("/{id}")
-    public SpaceDto update(@PathVariable Long id, @RequestBody SpaceCreateDto dto) {
+    public SpaceDto update(@PathVariable Long id, @Valid @RequestBody SpaceCreateDto dto) {
         return spaceService.update(id, dto);
     }
 

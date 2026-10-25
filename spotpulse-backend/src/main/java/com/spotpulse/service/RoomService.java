@@ -8,6 +8,8 @@ import com.spotpulse.model.Space;
 import com.spotpulse.repository.RoomRepository;
 import com.spotpulse.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RoomService {
@@ -39,19 +42,19 @@ public class RoomService {
     }
 
     @Transactional
-    public RoomDto create(RoomCreateDto dto) {
+    public RoomDto create(@Valid RoomCreateDto dto) {
         Space space = spaceRepository.findById(dto.getSpaceId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Space not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
         Room room = EntityMapper.toEntity(dto, space);
         Room saved = roomRepository.save(room);
         return EntityMapper.toDto(saved);
     }
 
     @Transactional
-    public RoomDto update(Long id, RoomCreateDto dto) {
+    public RoomDto update(Long id, @Valid RoomCreateDto dto) {
         Room room = findOrThrow(id);
         Space space = spaceRepository.findById(dto.getSpaceId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Space not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
         EntityMapper.updateEntity(room, dto, space);
         return EntityMapper.toDto(roomRepository.save(room));
     }

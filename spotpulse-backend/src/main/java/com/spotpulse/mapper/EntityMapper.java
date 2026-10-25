@@ -96,14 +96,18 @@ public final class EntityMapper {
         User user = new User();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setRole(dto.getRole());
+        if (dto.getRole() != null) {
+            user.setRole(dto.getRole());
+        }
         return user;
     }
 
     public static void updateEntity(User user, UserCreateDto dto) {
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setRole(dto.getRole());
+        if (dto.getRole() != null) {
+            user.setRole(dto.getRole());
+        }
     }
 
     // ──────────────────── Booking ────────────────────

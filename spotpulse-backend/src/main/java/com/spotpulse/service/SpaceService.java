@@ -6,6 +6,8 @@ import com.spotpulse.mapper.EntityMapper;
 import com.spotpulse.model.Space;
 import com.spotpulse.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SpaceService {
@@ -41,14 +44,14 @@ public class SpaceService {
     }
 
     @Transactional
-    public SpaceDto create(SpaceCreateDto dto) {
+    public SpaceDto create(@Valid SpaceCreateDto dto) {
         Space space = EntityMapper.toEntity(dto);
         Space saved = spaceRepository.save(space);
         return EntityMapper.toDto(saved);
     }
 
     @Transactional
-    public SpaceDto update(Long id, SpaceCreateDto dto) {
+    public SpaceDto update(Long id, @Valid SpaceCreateDto dto) {
         Space space = findOrThrow(id);
         EntityMapper.updateEntity(space, dto);
         return EntityMapper.toDto(spaceRepository.save(space));

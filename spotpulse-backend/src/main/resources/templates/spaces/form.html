@@ -36,21 +36,26 @@
 
     <div class="card form-card shadow-sm">
         <div class="card-body p-4">
-            <form th:action="${isEdit} ? @{'/spaces/' + ${space.id}} : @{/spaces}"
+            <form th:action="${isEdit} ? @{'/spaces/' + ${spaceId}} : @{/spaces}"
                   method="post" th:object="${space}">
+                <div class="alert alert-danger" th:if="${#fields.hasErrors('*')}" role="alert">
+                    <ul class="mb-0">
+                        <li th:each="error : ${#fields.errors('*')}" th:text="${error}"></li>
+                    </ul>
+                </div>
 
                 <!-- Name -->
                 <div class="mb-3">
                     <label for="name" class="form-label fw-semibold">Назва *</label>
                     <input type="text" class="form-control" id="name"
-                           th:field="*{name}" required placeholder="Creative Hub Kyiv"/>
+                           th:field="*{name}" th:errorclass="is-invalid" required placeholder="Creative Hub Kyiv"/>
                 </div>
 
                 <!-- Description -->
                 <div class="mb-3">
                     <label for="description" class="form-label fw-semibold">Опис</label>
                     <textarea class="form-control" id="description" rows="3"
-                              th:field="*{description}"
+                              th:field="*{description}" th:errorclass="is-invalid"
                               placeholder="Сучасний коворкінг із панорамними вікнами…"></textarea>
                 </div>
 
@@ -58,14 +63,14 @@
                 <div class="mb-3">
                     <label for="address" class="form-label fw-semibold">Адреса *</label>
                     <input type="text" class="form-control" id="address"
-                           th:field="*{address}" required placeholder="вул. Хрещатик, 22"/>
+                           th:field="*{address}" th:errorclass="is-invalid" required placeholder="вул. Хрещатик, 22"/>
                 </div>
 
                 <!-- City -->
                 <div class="mb-3">
                     <label for="city" class="form-label fw-semibold">Місто *</label>
                     <input type="text" class="form-control" id="city"
-                           th:field="*{city}" required placeholder="Київ"/>
+                           th:field="*{city}" th:errorclass="is-invalid" required placeholder="Київ"/>
                 </div>
 
                 <!-- Image URL (C1 — поле типу файл/посилання) -->
@@ -74,7 +79,7 @@
                         <i class="bi bi-image me-1"></i>URL зображення
                     </label>
                     <input type="url" class="form-control" id="imageUrl"
-                           th:field="*{imageUrl}"
+                           th:field="*{imageUrl}" th:errorclass="is-invalid"
                            placeholder="https://example.com/photo.jpg"
                            oninput="updatePreview(this.value)"/>
                     <div class="form-text">Вставте посилання на зображення простору</div>
