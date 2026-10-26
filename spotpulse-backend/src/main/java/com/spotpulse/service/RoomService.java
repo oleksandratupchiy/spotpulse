@@ -8,6 +8,9 @@ import com.spotpulse.model.Space;
 import com.spotpulse.repository.RoomRepository;
 import com.spotpulse.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
+import com.spotpulse.cache.ReadDataChanged;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.cache.annotation.Cacheable;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
@@ -23,6 +26,9 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class RoomService {
 
+    private final ApplicationEventPublisher events;
+
+
     private final RoomRepository roomRepository;
     private final SpaceRepository spaceRepository;
 
@@ -36,6 +42,7 @@ public class RoomService {
                 .map(EntityMapper::toDto);
     }
 
+    @Cacheable(cacheNames = "roomDetails", key = "@readCaches.key('roomDetails', #id)", condition = "@readCaches.allowed()")
     public RoomDto getById(Long id) {
         Room room = findOrThrow(id);
         return EntityMapper.toDto(room);
@@ -47,6 +54,7 @@ public class RoomService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
         Room room = EntityMapper.toEntity(dto, space);
         Room saved = roomRepository.save(room);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.ROOMS));
         return EntityMapper.toDto(saved);
     }
 
@@ -56,6 +64,7 @@ public class RoomService {
         Space space = spaceRepository.findById(dto.getSpaceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
         EntityMapper.updateEntity(room, dto, space);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.ROOMS));
         return EntityMapper.toDto(roomRepository.save(room));
     }
 
@@ -65,6 +74,7 @@ public class RoomService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found");
         }
         roomRepository.deleteById(id);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.ROOMS));
     }
 
     private Room findOrThrow(Long id) {

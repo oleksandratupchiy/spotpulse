@@ -7,6 +7,9 @@ import com.spotpulse.mapper.EntityMapper;
 import com.spotpulse.model.Space;
 import com.spotpulse.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
+import com.spotpulse.cache.ReadDataChanged;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.cache.annotation.Cacheable;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
@@ -26,12 +29,16 @@ import java.util.Locale;
 @Transactional(readOnly = true)
 public class SpaceService {
 
+    private final ApplicationEventPublisher events;
+
+
     public static final int SITEMAP_PAGE_SIZE = 1000;
     public static final int AUTOCOMPLETE_LIMIT = 8;
     public static final int AUTOCOMPLETE_MAX_LENGTH = 100;
 
     private final SpaceRepository spaceRepository;
 
+    @Cacheable(cacheNames = "spaceMap", key = "@readCaches.key('spaceMap', #city, #search, #limit)", condition = "@readCaches.allowed()")
     public com.spotpulse.dto.SpaceMapResponse mapData(String city, String search, int limit) {
         if (limit < 1 || limit > 200) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Map limit must be between 1 and 200");
@@ -55,6 +62,7 @@ public class SpaceService {
         return value.isBlank() ? "" : value;
     }
 
+    @Cacheable(cacheNames = "autocomplete", key = "@readCaches.key('autocomplete', #query)", condition = "@readCaches.allowed()")
     public List<SpaceSuggestionDto> autocomplete(String query) {
         if (query == null) return List.of();
         if (query.length() > AUTOCOMPLETE_MAX_LENGTH) {
@@ -94,6 +102,7 @@ public class SpaceService {
                 .map(EntityMapper::toDto);
     }
 
+    @Cacheable(cacheNames = "spaceDetails", key = "@readCaches.key('spaceDetails', #id)", condition = "@readCaches.allowed()")
     public SpaceDto getById(Long id) {
         Space space = findOrThrow(id);
         return EntityMapper.toDto(space);
@@ -103,6 +112,7 @@ public class SpaceService {
     public SpaceDto create(@Valid SpaceCreateDto dto) {
         Space space = EntityMapper.toEntity(dto);
         Space saved = spaceRepository.save(space);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
         return EntityMapper.toDto(saved);
     }
 
@@ -110,6 +120,7 @@ public class SpaceService {
     public SpaceDto update(Long id, @Valid SpaceCreateDto dto) {
         Space space = findOrThrow(id);
         EntityMapper.updateEntity(space, dto);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
         return EntityMapper.toDto(spaceRepository.save(space));
     }
 
@@ -119,6 +130,7 @@ public class SpaceService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found");
         }
         spaceRepository.deleteById(id);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
     }
 
     private Space findOrThrow(Long id) {

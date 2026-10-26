@@ -6,6 +6,8 @@ import com.spotpulse.mapper.EntityMapper;
 import com.spotpulse.model.User;
 import com.spotpulse.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import com.spotpulse.cache.ReadDataChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
@@ -22,6 +24,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserService {
+
+    private final ApplicationEventPublisher events;
+
 
     private final UserRepository userRepository;
 
@@ -61,6 +66,7 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
         userRepository.deleteById(id);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
     }
 
     private User saveWithUniqueEmail(User user) {

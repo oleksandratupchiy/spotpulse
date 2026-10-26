@@ -11,6 +11,8 @@ import com.spotpulse.repository.BookingRepository;
 import com.spotpulse.repository.RoomRepository;
 import com.spotpulse.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import com.spotpulse.cache.ReadDataChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Page;
@@ -27,6 +29,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BookingService {
+
+    private final ApplicationEventPublisher events;
+
 
     private final BookingRepository bookingRepository;
     private final RoomRepository roomRepository;
@@ -60,6 +65,7 @@ public class BookingService {
         checkAvailability(dto, dto.getStatus() == null ? BookingStatus.CONFIRMED : dto.getStatus(), null);
         Booking booking = EntityMapper.toEntity(dto, room, user);
         Booking saved = bookingRepository.save(booking);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(saved);
     }
 
@@ -75,6 +81,7 @@ public class BookingService {
 
         checkAvailability(dto, dto.getStatus() == null ? booking.getStatus() : dto.getStatus(), id);
         EntityMapper.updateEntity(booking, dto, room, user);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(bookingRepository.save(booking));
     }
 
@@ -84,6 +91,7 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found");
         }
         bookingRepository.deleteById(id);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
     }
 
     private void checkAvailability(BookingCreateDto dto, BookingStatus status, Long excludedId) {

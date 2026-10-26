@@ -5,6 +5,7 @@ import com.spotpulse.dto.BookingAnalyticsDto.*;
 import com.spotpulse.model.enums.BookingStatus;
 import com.spotpulse.repository.BookingAnalyticsRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class BookingAnalyticsService {
     public static final int POPULAR_ROOMS_LIMIT = 10;
     private final BookingAnalyticsRepository repository;
 
+    @Cacheable(cacheNames = "bookingAnalytics", key = "@readCaches.key('bookingAnalytics', #from, #to)", condition = "@readCaches.allowed()")
     public BookingAnalyticsDto getBookings(LocalDate from, LocalDate to) {
         if (from == null || to == null || from.getYear() < 1 || to.getYear() > 9998
                 || to.isBefore(from) || ChronoUnit.DAYS.between(from, to) >= MAX_DAYS) {
