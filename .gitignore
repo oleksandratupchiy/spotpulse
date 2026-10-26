@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local H2 files belong outside the checkout; ignore accidental database artifacts too.
+*.mv.db
+*.trace.db
+*.lock.db
+*.temp.db

@@ -1,5 +1,10 @@
 # F1 — Chart.js booking analytics
 
+Security update: the earlier public-demo access described below is superseded by
+[C16/QA3](C16-QA3-oauth2-rbac.md). Analytics now requires OWNER or ADMIN. Owners see
+only their own spaces; administrators see platform-wide aggregates. The API itself
+enforces these scopes, and the public-demo warning has been removed from React.
+
 ## Purpose and access
 
 The React SPA adds `/analytics` and an **Analytics** navigation link. This is a

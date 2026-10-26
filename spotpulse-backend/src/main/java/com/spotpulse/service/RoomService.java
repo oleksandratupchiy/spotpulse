@@ -8,6 +8,8 @@ import com.spotpulse.model.Space;
 import com.spotpulse.repository.RoomRepository;
 import com.spotpulse.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.spotpulse.security.AccessPolicy;
 import com.spotpulse.cache.ReadDataChanged;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
@@ -25,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RoomService {
+    private final AccessPolicy access;
 
     private final ApplicationEventPublisher events;
 
@@ -49,6 +52,7 @@ public class RoomService {
     }
 
     @Transactional
+    @PreAuthorize("@access.canManageSpace(#dto.spaceId)")
     public RoomDto create(@Valid RoomCreateDto dto) {
         Space space = spaceRepository.findById(dto.getSpaceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found"));
@@ -59,6 +63,7 @@ public class RoomService {
     }
 
     @Transactional
+    @PreAuthorize("@access.canManageRoom(#id) and @access.canManageSpace(#dto.spaceId)")
     public RoomDto update(Long id, @Valid RoomCreateDto dto) {
         Room room = findOrThrow(id);
         Space space = spaceRepository.findById(dto.getSpaceId())
@@ -69,6 +74,7 @@ public class RoomService {
     }
 
     @Transactional
+    @PreAuthorize("@access.canManageRoom(#id)")
     public void delete(Long id) {
         if (!roomRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found");

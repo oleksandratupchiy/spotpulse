@@ -1,5 +1,12 @@
 # B9 — server-side API caching
 
+Security update: [C16/QA3](C16-QA3-oauth2-rbac.md) adds role/ownership authorization
+before cache lookup. Analytics keys now also include `platform` or `owner:<id>`.
+Public caches and after-commit invalidation remain. Auth/session/role decisions are
+not cached; authenticated HTTP requests refresh roles from the database independently
+of cached aggregate reads. The original measurements below remain historical
+service-level measurements, and protected endpoints now require a valid session.
+
 ## Provider and configuration
 
 SpotPulse uses Spring Cache annotations with Caffeine 3.2.4 (version managed by

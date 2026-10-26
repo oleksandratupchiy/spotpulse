@@ -44,6 +44,11 @@ public class Space {
     @Column(length = 254)
     private String contactEmail;
 
+    // Legacy spaces remain unassigned until an administrator explicitly assigns them.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
     @OneToMany(mappedBy = "space", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Room> rooms = new ArrayList<>();
 }

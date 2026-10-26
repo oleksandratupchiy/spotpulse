@@ -6,6 +6,7 @@ import com.spotpulse.service.SpaceService;
 import com.spotpulse.seo.SpaceSeo;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -41,6 +42,7 @@ public class SpaceMvcController {
         return "spaces/form";
     }
 
+    @PreAuthorize("@access.canManageSpace(#id)")
     @GetMapping("/{id}/edit")
     public String editForm(@PathVariable Long id, Model model) {
         SpaceDto space = spaceService.getById(id);
@@ -61,6 +63,7 @@ public class SpaceMvcController {
         return "redirect:/spaces";
     }
 
+    @PreAuthorize("@access.canManageSpace(#id)")
     @PostMapping("/{id}")
     public String update(@PathVariable Long id, @Valid @ModelAttribute("space") SpaceCreateDto space,
                          BindingResult errors, Model model) {

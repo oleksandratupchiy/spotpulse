@@ -30,19 +30,19 @@ public interface BookingAnalyticsRepository extends Repository<Booking, Long> {
     @Query("""
             select cast(b.startTime as LocalDate) as bookingDate, b.status as status, count(b) as count
             from Booking b
-            where b.startTime >= :from and b.startTime < :until
+            where b.startTime >= :from and b.startTime < :until and (:ownerId is null or b.room.space.owner.id = :ownerId)
             group by cast(b.startTime as LocalDate), b.status
             order by cast(b.startTime as LocalDate), b.status
             """)
-    List<DailyCount> daily(@Param("from") LocalDateTime from, @Param("until") LocalDateTime until);
+    List<DailyCount> daily(@Param("from") LocalDateTime from, @Param("until") LocalDateTime until, @Param("ownerId") Long ownerId);
 
     @Query("""
             select r.id as roomId, r.name as roomName, s.id as spaceId, s.name as spaceName, count(b) as count
             from Booking b join b.room r join r.space s
-            where b.startTime >= :from and b.startTime < :until and b.status = :status
+            where b.startTime >= :from and b.startTime < :until and (:ownerId is null or b.room.space.owner.id = :ownerId) and b.status = :status
             group by r.id, r.name, s.id, s.name
             order by count(b) desc, r.id asc
             """)
     List<PopularRoomCount> popularRooms(@Param("from") LocalDateTime from, @Param("until") LocalDateTime until,
-                                       @Param("status") BookingStatus status, Pageable pageable);
+                                       @Param("status") BookingStatus status, @Param("ownerId") Long ownerId, Pageable pageable);
 }

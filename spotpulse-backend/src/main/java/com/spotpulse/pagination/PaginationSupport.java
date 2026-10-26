@@ -64,7 +64,7 @@ public final class PaginationSupport {
             UriComponentsBuilder link = UriComponentsBuilder.fromPath(request.getRequestURI());
             Map<String, Object> variables = new LinkedHashMap<>();
             request.getParameterMap().forEach((name, values) -> {
-                if (!name.equals("skip") && !name.equals("limit") && !name.equals("page") && !name.equals("size")) {
+                if (!name.equals("skip") && !name.equals("limit") && !name.equals("page") && !name.equals("size") && !name.equals("_csrf")) {
                     for (String value : values) {
                         String variable = "value" + variables.size();
                         variables.put(variable, value);

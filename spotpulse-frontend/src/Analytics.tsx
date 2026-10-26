@@ -63,7 +63,7 @@ export default function Analytics() {
   return <>
     <section className="hero mb-4"><p className="eyebrow">BOOKING INSIGHTS</p><h1>Booking analytics</h1>
       <p className="lead">See when meetings are scheduled and which rooms are booked most often.</p>
-      <p className="alert alert-info">Public demonstration analytics. Aggregate data only; this view has no role-based access restrictions.</p>
+      <p className="alert alert-info">Management analytics. Owners see only their own spaces; administrators see platform-wide aggregates.</p>
       <p>Dates refer to scheduled booking starts, using the backend’s stored calendar times. Each booking is counted once on its start date, including meetings spanning several days. These counts do not measure attendance, utilization hours or revenue.</p>
     </section>
     <form className="search-panel row g-3 align-items-end mb-4" onSubmit={apply}>

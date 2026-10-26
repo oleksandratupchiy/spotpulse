@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.h2.console.enabled=false", "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @Transactional
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class SpaceAutocompleteTests {
     @Autowired SpaceService spaces;
     @Autowired WebApplicationContext context;
@@ -42,7 +43,13 @@ class SpaceAutocompleteTests {
 
     @BeforeEach
     void seed() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .alwaysDo(result -> org.springframework.security.core.context.SecurityContextHolder.setContext(org.springframework.security.test.context.TestSecurityContextHolder.getContext()))
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("regression-admin").roles("ADMIN"))
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf().asHeader()))
+                .build();
         hubId = create("Creative Hub", "Kyiv", "Main Street 22");
         create("Quiet Corner", "Lviv", "Hub Avenue");
         entityManager.flush();

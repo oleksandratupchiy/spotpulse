@@ -7,6 +7,8 @@ import com.spotpulse.mapper.EntityMapper;
 import com.spotpulse.model.Space;
 import com.spotpulse.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.spotpulse.security.AccessPolicy;
 import com.spotpulse.cache.ReadDataChanged;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
@@ -28,6 +30,7 @@ import java.util.Locale;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SpaceService {
+    private final AccessPolicy access;
 
     private final ApplicationEventPublisher events;
 
@@ -37,6 +40,7 @@ public class SpaceService {
     public static final int AUTOCOMPLETE_MAX_LENGTH = 100;
 
     private final SpaceRepository spaceRepository;
+    private final com.spotpulse.repository.UserRepository userRepository;
 
     @Cacheable(cacheNames = "spaceMap", key = "@readCaches.key('spaceMap', #city, #search, #limit)", condition = "@readCaches.allowed()")
     public com.spotpulse.dto.SpaceMapResponse mapData(String city, String search, int limit) {
@@ -92,6 +96,24 @@ public class SpaceService {
                 .map(EntityMapper::toDto);
     }
 
+    @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
+    public Page<SpaceDto> getManaged(Pageable pageable) {
+        return (access.admin() ? spaceRepository.findAll(pageable) : spaceRepository.findByOwnerId(access.userId(), pageable))
+                .map(EntityMapper::toDto);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public SpaceDto assignOwner(Long id, Long ownerId) {
+        Space space = findOrThrow(id);
+        var owner = userRepository.findById(ownerId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
+        if (owner.getRole() != com.spotpulse.model.enums.Role.OWNER && owner.getRole() != com.spotpulse.model.enums.Role.ADMIN)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assign an OWNER or ADMIN account");
+        space.setOwner(owner);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
+        return EntityMapper.toDto(spaceRepository.save(space));
+    }
+
     public Page<SpaceDto> getByCity(String city, Pageable pageable) {
         return spaceRepository.findByCity(city, pageable)
                 .map(EntityMapper::toDto);
@@ -109,14 +131,17 @@ public class SpaceService {
     }
 
     @Transactional
+    @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
     public SpaceDto create(@Valid SpaceCreateDto dto) {
         Space space = EntityMapper.toEntity(dto);
+        if (access.optionalUserId() != null) space.setOwner(userRepository.getReferenceById(access.userId()));
         Space saved = spaceRepository.save(space);
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
         return EntityMapper.toDto(saved);
     }
 
     @Transactional
+    @PreAuthorize("@access.canManageSpace(#id)")
     public SpaceDto update(Long id, @Valid SpaceCreateDto dto) {
         Space space = findOrThrow(id);
         EntityMapper.updateEntity(space, dto);
@@ -125,6 +150,7 @@ public class SpaceService {
     }
 
     @Transactional
+    @PreAuthorize("@access.canManageSpace(#id)")
     public void delete(Long id) {
         if (!spaceRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Space not found");

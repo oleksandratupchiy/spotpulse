@@ -10,6 +10,8 @@ const page = (items: unknown[], extra = {}) => ({ items, skip: 0, limit: 6, tota
 function mockApi(override?: (url: string, options?: RequestInit) => { status?: number; body: unknown } | undefined) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
     const url = String(input);
+    if (url === '/api/auth/me') return new Response(JSON.stringify({ authenticated: true, user: existingUser, loginEnabled: true }));
+    if (url === '/api/auth/csrf') return new Response(JSON.stringify({ token: 'test-csrf', headerName: 'X-CSRF-TOKEN' }));
     const replacement = override?.(url, options);
     const body = url.startsWith('/api/spaces?') ? page([space]) : url === '/api/spaces/3' ? space : url.startsWith('/api/rooms?') ? page([room]) : url === '/api/rooms/8' ? room : url.startsWith('/api/users?') ? page([existingUser]) : {};
     return new Response(JSON.stringify(replacement?.body ?? body), { status: replacement?.status ?? 200, headers: { 'Content-Type': 'application/json' } });
@@ -18,8 +20,7 @@ function mockApi(override?: (url: string, options?: RequestInit) => { status?: n
 function open(path = '/spaces') { return render(<MemoryRouter initialEntries={[path]}><App/></MemoryRouter>); }
 async function fillBooking() {
   const user = userEvent.setup();
-  await screen.findByLabelText('Existing user');
-  await user.selectOptions(screen.getByLabelText('Existing user'), '42');
+  await screen.findByText(/Booking as Alex/);
   const year = new Date().getFullYear() + 1;
   // datetime-local requires an ISO value; exercise React's change handler directly.
   const { fireEvent } = await import('@testing-library/react');
@@ -87,7 +88,8 @@ test('handles missing space with friendly 404', async () => {
 test('validates booking before sending a request', async () => {
   const fetch = mockApi(); open('/rooms/8');
   await userEvent.click(await screen.findByRole('button', { name: 'Confirm booking' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Choose an existing user');
+  expect(screen.getByText(/Booking as Alex/)).toBeVisible();
+  expect(screen.queryByLabelText('Existing user')).not.toBeInTheDocument();
   expect(screen.getByRole('alert')).toHaveTextContent('Enter both start and end times');
   expect(fetch.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
 });
@@ -108,7 +110,7 @@ test('posts DTO fields and displays confirmed booking response', async () => {
   expect(await screen.findByText('Booking #91 saved')).toBeVisible();
   expect(screen.getByText('Status: CONFIRMED')).toBeVisible();
   const post = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
-  expect(JSON.parse(String(post[1]?.body))).toEqual({ roomId: 8, userId: 42, startTime: expect.stringContaining('T10:00'), endTime: expect.stringContaining('T11:00') });
+  expect(JSON.parse(String(post[1]?.body))).toEqual({ roomId: 8, startTime: expect.stringContaining('T10:00'), endTime: expect.stringContaining('T11:00') });
   expect(screen.getByRole('button', { name: 'Booking confirmed' })).toBeDisabled();
 });
 test('displays HTTP 409 without claiming a booking succeeded', async () => {
@@ -131,19 +133,13 @@ test('renders unknown route and navigates back to discovery', async () => {
   expect(await screen.findByRole('heading', { name: 'River Hub' })).toBeVisible();
 });
 
-test('can book with an existing user on a later page', async () => {
-  const next = '/api/users?skip=20&limit=20';
-  const fetch = mockApi((url, options) => {
-    if (url === '/api/bookings') return { status: 201, body: { ...JSON.parse(String(options?.body)), id: 92, roomName: room.name, userName: 'Sam', status: 'CONFIRMED' } };
-    if (url === next) return { body: page([{ ...existingUser, id: 73, name: 'Sam' }], { skip: 20, limit: 20, total: 21 }) };
-    if (url.startsWith('/api/users?')) return { body: page([existingUser], { limit: 20, total: 21, nextLink: next }) };
-  });
-  open('/rooms/8'); await fillBooking();
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await screen.findByRole('option', { name: 'Sam (alex@example.test)' });
-  await userEvent.selectOptions(screen.getByLabelText('Existing user'), '73');
-  await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }));
+test('books as the session identity without requesting a user directory or sending userId', async () => {
+  const fetch = mockApi((url, options) => url === '/api/bookings' ? { status: 201, body: { ...JSON.parse(String(options?.body)), id: 92, roomName: room.name, userName: 'Alex', userId: 42, status: 'CONFIRMED' } } : undefined);
+  open('/rooms/8'); const user = await fillBooking();
+  await user.click(screen.getByRole('button', { name: 'Confirm booking' }));
   expect(await screen.findByText('Booking #92 saved')).toBeVisible();
+  expect(fetch.mock.calls.some(([url]) => String(url).startsWith('/api/users'))).toBe(false);
   const post = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
-  expect(JSON.parse(String(post[1]?.body)).userId).toBe(73);
+  expect(JSON.parse(String(post[1]?.body))).not.toHaveProperty('userId');
+  expect(post[1]?.headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-csrf' });
 });

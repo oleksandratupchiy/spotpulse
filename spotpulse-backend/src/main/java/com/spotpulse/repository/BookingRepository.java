@@ -13,6 +13,12 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
+    boolean existsByIdAndUserId(Long id, Long userId);
+    boolean existsByIdAndRoomSpaceOwnerId(Long id, Long ownerId);
+    Page<Booking> findByRoomSpaceOwnerId(Long ownerId, Pageable pageable);
+    @Query("select b from Booking b where b.user.id = :userId and (:roomId is null or b.room.id = :roomId) and (:status is null or b.status = :status)")
+    Page<Booking> ownBookings(@Param("userId") Long userId, @Param("roomId") Long roomId,
+                             @Param("status") BookingStatus status, Pageable pageable);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Booking b where b.id = :id")
     Optional<Booking> findByIdForUpdate(@Param("id") Long id);

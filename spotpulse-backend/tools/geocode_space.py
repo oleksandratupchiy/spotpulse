@@ -68,6 +68,9 @@ def geocode(space_id, api, provider, user_agent, cache_path, choose=input):
         raise ValueError('Space ID must be positive')
     endpoint = f'{api.rstrip("/")}/spaces/{space_id}'
     headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+    session_cookie = os.getenv('SPOTPULSE_SESSION_COOKIE')
+    if session_cookie:
+        headers['Cookie'] = session_cookie
     token = os.getenv('SPOTPULSE_API_TOKEN')
     if token:
         headers['Authorization'] = f'Bearer {token}'
@@ -94,6 +97,10 @@ def geocode(space_id, api, provider, user_agent, cache_path, choose=input):
     candidate = results[int(selected) - 1]
     body = {field: current.get(field) for field in ('name', 'description', 'address', 'city', 'imageUrl', 'contactEmail')}
     body.update(latitude=float(candidate['lat']), longitude=float(candidate['lon']))
+    csrf = request_json(f'{api.rstrip("/")}/auth/csrf', headers=headers)
+    if not isinstance(csrf.get('token'), str) or not isinstance(csrf.get('headerName'), str):
+        raise ValueError('Invalid CSRF response; no coordinates saved')
+    headers = {**headers, csrf['headerName']: csrf['token']}
     request_json(endpoint, headers=headers, method='PUT', body=body)
     print('Confirmed coordinates saved.')
     return True

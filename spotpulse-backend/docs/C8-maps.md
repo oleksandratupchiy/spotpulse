@@ -1,5 +1,11 @@
 # C8 — interactive coworking discovery
 
+Security update: public discovery/maps remain public. Space coordinate writes now
+require an authorized OWNER/ADMIN session and CSRF. The operator tool accepts the
+operator's `SPOTPULSE_SESSION_COOKIE` and obtains CSRF before saving; no token is sent
+to the geocoder. See [C16/QA3](C16-QA3-oauth2-rbac.md) for the session workflow. The
+authenticated space editor also accepts independently confirmed coordinates.
+
 ## Provider and installation
 
 The existing React `/spaces` discovery page offers **Show map / Hide map** alongside

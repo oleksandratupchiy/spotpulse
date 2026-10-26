@@ -20,6 +20,9 @@ public class BookingController {
 
     private final BookingService bookingService;
 
+    @PostMapping("/{id}/cancel")
+    public BookingDto cancel(@PathVariable Long id) { return bookingService.cancel(id); }
+
     /** GET /api/bookings?page=0&size=10  або  ?userId=1  або  ?roomId=2  або  ?status=CONFIRMED */
     @GetMapping
     public Object getAll(

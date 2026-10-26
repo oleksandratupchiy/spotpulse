@@ -14,7 +14,7 @@ import org.springframework.core.Ordered;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ReadCacheProperties.class)
 // Cache advice surrounds transactions: misses are stored only after the read commits.
-@EnableCaching(order = Ordered.HIGHEST_PRECEDENCE + 10)
+@EnableCaching(order = Ordered.LOWEST_PRECEDENCE - 10)
 public class ReadCacheConfiguration {
     @Bean
     @ConditionalOnMissingBean(Ticker.class)

@@ -34,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spotpulse.seo.indexable=true"
 })
 @Transactional
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class SpaceLandingTests {
     @Autowired SpaceService spaces;
     @Autowired RoomService rooms;
@@ -46,7 +47,13 @@ class SpaceLandingTests {
 
     @BeforeEach
     void seed() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .alwaysDo(result -> org.springframework.security.core.context.SecurityContextHolder.setContext(org.springframework.security.test.context.TestSecurityContextHolder.getContext()))
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("regression-admin").roles("ADMIN"))
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf().asHeader()))
+                .build();
         spaceId = spaces.create(new SpaceCreateDto("Creative Hub", "Світлий простір у центрі міста.",
                 "Main Street 22", "Kyiv", "https://images.example/hub.jpg", "owner@example.org")).getId();
         emptyId = spaces.create(new SpaceCreateDto("Quiet Corner", null, "Park Street 5", "Lviv", null)).getId();

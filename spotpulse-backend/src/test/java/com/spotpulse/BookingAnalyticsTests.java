@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.jpa.properties.hibernate.generate_statistics=true", "spring.h2.console.enabled=false"
 })
 @Transactional
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class BookingAnalyticsTests {
     @Autowired SpaceRepository spaces;
     @Autowired RoomRepository rooms;
@@ -65,7 +66,13 @@ class BookingAnalyticsTests {
 
     @BeforeEach
     void seed() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .alwaysDo(result -> org.springframework.security.core.context.SecurityContextHolder.setContext(org.springframework.security.test.context.TestSecurityContextHolder.getContext()))
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("regression-admin").roles("ADMIN"))
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf().asHeader()))
+                .build();
         user = new User(); user.setName("Private person"); user.setEmail("private@example.test"); users.save(user);
         var a = space("River Hub"); first = room(a); second = room(space("Garden Hub")); third = room(a);
         booking(first, "2026-09-30T23:00", "2026-10-01T01:00", BookingStatus.CONFIRMED);

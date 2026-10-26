@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface SpaceRepository extends JpaRepository<Space, Long> {
+    Page<Space> findByOwnerId(Long ownerId, Pageable pageable);
+    boolean existsByIdAndOwnerId(Long id, Long ownerId);
+    boolean existsByOwnerId(Long ownerId);
 
     @Query("""
             select new com.spotpulse.dto.SpaceMapDto(s.id, s.name, s.city, s.address, s.latitude, s.longitude)

@@ -23,15 +23,15 @@ const data: BookingAnalytics = {
   ],
 };
 function api(body = data, status = 200) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify(body), { status }));
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async input => String(input) === '/api/auth/me' ? new Response(JSON.stringify({ authenticated: true, loginEnabled: true, user: { id: 1, name: 'Admin', email: 'admin@example.test', role: 'ADMIN' } })) : new Response(JSON.stringify(body), { status }));
 }
 function open() { return render(<MemoryRouter><Analytics/></MemoryRouter>); }
 function chart(kind: string) { return JSON.parse(screen.getByTestId(kind).getAttribute('data-chart')!); }
 
-test('analytics route renders the demonstration disclosure and all three charts with API values', async () => {
+test('analytics route renders the management disclosure and all three charts with API values', async () => {
   const fetch = api(); render(<MemoryRouter initialEntries={['/analytics']}><App/></MemoryRouter>);
   expect(await screen.findByRole('heading', { name: 'Booking analytics' })).toBeVisible();
-  expect(screen.getByText(/Public demonstration analytics/)).toBeVisible();
+  expect(screen.getByText(/Management analytics/)).toBeVisible();
   expect(screen.getByRole('link', { name: 'Analytics' })).toHaveAttribute('href', '/analytics');
   expect(await screen.findByTestId('line')).toBeVisible();
   expect(chart('line').datasets.map((set: { data: number[] }) => set.data)).toEqual([[2, 1, 3], [0, 2, 0]]);
@@ -40,7 +40,7 @@ test('analytics route renders the demonstration disclosure and all three charts 
   expect(chart('doughnut').datasets[0].data).toEqual([6, 2]);
   expect(screen.getByRole('status')).toHaveTextContent('8 scheduled bookings; 6 confirmed, 2 cancelled');
   expect(screen.getByText(/Each booking is counted once/)).toBeVisible();
-  expect(fetch.mock.calls.every(([url]) => String(url).startsWith('/api/analytics/bookings?'))).toBe(true);
+  expect(fetch.mock.calls.every(([url]) => (String(url).startsWith('/api/analytics/bookings?') || String(url) === '/api/auth/me'))).toBe(true);
   await userEvent.click(screen.getByText('View daily counts as a table'));
   expect(screen.getByRole('table')).toBeVisible();
   await userEvent.click(screen.getByText('View room ranking as text'));

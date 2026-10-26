@@ -16,3 +16,18 @@ test('handles non-JSON HTTP errors', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('proxy error', { status: 500 }));
   await expect(request('/api/spaces')).rejects.toBeInstanceOf(ApiError);
 });
+
+test('does not submit mutations when a CSRF token cannot be obtained', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 403 }));
+  await expect(request('/api/spaces', { method: 'POST', body: '{}' })).rejects.toMatchObject({ status: 403 });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0][0]).toBe('/api/auth/csrf');
+});
+
+test('uses fresh CSRF tokens and supports empty logout/delete responses', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(JSON.stringify({ token: 'masked-token', headerName: 'X-CSRF-TOKEN' })))
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  await expect(request('/api/auth/logout', { method: 'POST' })).resolves.toBeUndefined();
+  expect(fetch.mock.calls[1][1]).toMatchObject({ credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'masked-token' } });
+});

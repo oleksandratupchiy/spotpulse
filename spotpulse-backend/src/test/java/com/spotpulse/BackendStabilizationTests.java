@@ -39,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.jpa.show-sql=false",
         "spring.h2.console.enabled=false"
 })
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class BackendStabilizationTests {
     @Autowired BookingService bookings;
     @Autowired UserService users;
@@ -66,7 +67,13 @@ class BackendStabilizationTests {
         roomId = rooms.create(new RoomCreateDto("Room A", 4, BigDecimal.ZERO, spaceId)).getId();
         otherRoomId = rooms.create(new RoomCreateDto("Room B", 8, new BigDecimal("10.00"), spaceId)).getId();
         start = LocalDateTime.now().plusDays(1).withNano(0);
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .alwaysDo(result -> org.springframework.security.core.context.SecurityContextHolder.setContext(org.springframework.security.test.context.TestSecurityContextHolder.getContext()))
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("regression-admin").roles("ADMIN"))
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf().asHeader()))
+                .build();
     }
 
     BookingCreateDto booking(Long room, LocalDateTime from, LocalDateTime to, BookingStatus status) {
@@ -207,7 +214,7 @@ class BackendStabilizationTests {
     void concurrentBookingsHaveExactlyOneWinner() throws Exception {
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch go = new CountDownLatch(1);
-        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+        try (ExecutorService executor = new org.springframework.security.concurrent.DelegatingSecurityContextExecutorService(Executors.newFixedThreadPool(2))) {
             Callable<Integer> attempt = () -> {
                 ready.countDown();
                 if (!go.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Start timed out");

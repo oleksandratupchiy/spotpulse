@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spotpulse.cache.ttl=10s", "spotpulse.cache.maximum-size=3"
 })
 @Import(ReadCacheTests.TimeConfiguration.class)
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class ReadCacheTests {
     static class ManualTicker implements Ticker {
         final AtomicLong nanos = new AtomicLong();
@@ -102,7 +103,13 @@ class ReadCacheTests {
         userId = users.create(new UserCreateDto("Private person", "private-cache@example.test", null)).getId();
         start = LocalDate.now().plusDays(3).atTime(10, 0);
         bookingId = bookings.create(booking(start, BookingStatus.CONFIRMED)).getId();
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .alwaysDo(result -> org.springframework.security.core.context.SecurityContextHolder.setContext(org.springframework.security.test.context.TestSecurityContextHolder.getContext()))
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("regression-admin").roles("ADMIN"))
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf().asHeader()))
+                .build();
     }
 
     @Test

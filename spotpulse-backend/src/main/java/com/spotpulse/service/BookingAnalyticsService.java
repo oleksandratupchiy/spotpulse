@@ -5,6 +5,8 @@ import com.spotpulse.dto.BookingAnalyticsDto.*;
 import com.spotpulse.model.enums.BookingStatus;
 import com.spotpulse.repository.BookingAnalyticsRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.spotpulse.security.AccessPolicy;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -23,11 +25,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class BookingAnalyticsService {
+    private final AccessPolicy access;
     public static final int MAX_DAYS = 366;
     public static final int POPULAR_ROOMS_LIMIT = 10;
     private final BookingAnalyticsRepository repository;
 
-    @Cacheable(cacheNames = "bookingAnalytics", key = "@readCaches.key('bookingAnalytics', #from, #to)", condition = "@readCaches.allowed()")
+    @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
+    @Cacheable(cacheNames = "bookingAnalytics", key = "@readCaches.key('bookingAnalytics', @access.analyticsScope(), #from, #to)", condition = "@readCaches.allowed()")
     public BookingAnalyticsDto getBookings(LocalDate from, LocalDate to) {
         if (from == null || to == null || from.getYear() < 1 || to.getYear() > 9998
                 || to.isBefore(from) || ChronoUnit.DAYS.between(from, to) >= MAX_DAYS) {
@@ -39,7 +43,7 @@ public class BookingAnalyticsService {
         Map<LocalDate, long[]> counts = new HashMap<>();
         long confirmed = 0;
         long cancelled = 0;
-        for (var row : repository.daily(start, until)) {
+        for (var row : repository.daily(start, until, access.analyticsOwnerId())) {
             var day = counts.computeIfAbsent(row.getBookingDate(), ignored -> new long[2]);
             if (row.getStatus() == BookingStatus.CONFIRMED) {
                 day[0] = row.getCount();
@@ -54,7 +58,7 @@ public class BookingAnalyticsService {
             long[] day = counts.getOrDefault(date, new long[2]);
             daily.add(new Day(date, day[0], day[1]));
         }
-        var popular = repository.popularRooms(start, until, BookingStatus.CONFIRMED,
+        var popular = repository.popularRooms(start, until, BookingStatus.CONFIRMED, access.analyticsOwnerId(),
                         PageRequest.of(0, POPULAR_ROOMS_LIMIT)).stream()
                 .map(row -> new PopularRoom(row.getRoomId(), row.getRoomName(), row.getSpaceId(),
                         row.getSpaceName(), row.getCount())).toList();

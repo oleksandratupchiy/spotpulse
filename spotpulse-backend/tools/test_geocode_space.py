@@ -26,11 +26,12 @@ class GeocodingTests(unittest.TestCase):
                 self.assertEqual(request.call_count, 1)
 
     def test_explicit_selection_saves_coordinates_and_preserves_fields(self):
-        with patch.object(tool, 'candidates', return_value=self.result), patch.object(tool, 'request_json', return_value=self.space) as request:
+        with patch.object(tool, 'candidates', return_value=self.result), patch.object(tool, 'request_json', side_effect=[self.space, self.space, {'token': 'test-csrf', 'headerName': 'X-CSRF-TOKEN'}, self.space]) as request:
             self.assertTrue(tool.geocode(1, 'http://localhost/api', '', '', self.cache, choose=lambda _: '1'))
             self.assertEqual(request.call_args.kwargs['method'], 'PUT')
             self.assertEqual(request.call_args.kwargs['body']['latitude'], 50.45)
             self.assertEqual(request.call_args.kwargs['body']['name'], 'Hub')
+            self.assertEqual(request.call_args.kwargs['headers']['X-CSRF-TOKEN'], 'test-csrf')
 
     def test_invalid_coordinates_and_provider_failure_are_not_cached(self):
         with patch.object(tool, 'request_json', return_value=[dict(lat='NaN', lon='30')]):

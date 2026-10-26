@@ -11,6 +11,8 @@ import com.spotpulse.repository.BookingRepository;
 import com.spotpulse.repository.RoomRepository;
 import com.spotpulse.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.spotpulse.security.AccessPolicy;
 import com.spotpulse.cache.ReadDataChanged;
 import org.springframework.context.ApplicationEventPublisher;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BookingService {
+    private final AccessPolicy access;
 
     private final ApplicationEventPublisher events;
 
@@ -37,7 +40,12 @@ public class BookingService {
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
 
+    @PreAuthorize("isAuthenticated()")
     public Page<BookingDto> getAll(Long userId, Long roomId, BookingStatus status, Pageable pageable) {
+        if (!access.admin()) {
+            if (userId != null && !userId.equals(access.userId())) throw new org.springframework.security.access.AccessDeniedException("Only your own bookings can be requested");
+            return bookingRepository.ownBookings(access.userId(), roomId, status, pageable).map(EntityMapper::toDto);
+        }
         if (userId != null) {
             return bookingRepository.findByUserId(userId, pageable).map(EntityMapper::toDto);
         }
@@ -50,13 +58,22 @@ public class BookingService {
         return bookingRepository.findAll(pageable).map(EntityMapper::toDto);
     }
 
+    @PreAuthorize("@access.canReadBooking(#id)")
     public BookingDto getById(Long id) {
         Booking booking = findOrThrow(id);
         return EntityMapper.toDto(booking);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
+    @PreAuthorize("isAuthenticated()")
     public BookingDto create(@Valid BookingCreateDto dto) {
+        if (!access.admin()) {
+            if (dto.getUserId() != null && !dto.getUserId().equals(access.userId()))
+                throw new org.springframework.security.access.AccessDeniedException("Cannot book on another user's behalf");
+            if (dto.getStatus() != null && dto.getStatus() != BookingStatus.CONFIRMED)
+                throw new org.springframework.security.access.AccessDeniedException("Use the cancellation operation to cancel a booking");
+            dto.setUserId(access.userId());
+        } else if (dto.getUserId() == null) dto.setUserId(access.userId());
         Room room = roomRepository.findByIdForUpdate(dto.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
         User user = userRepository.findById(dto.getUserId())
@@ -70,10 +87,12 @@ public class BookingService {
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
+    @PreAuthorize("hasRole('ADMIN')")
     public BookingDto update(Long id, @Valid BookingCreateDto dto) {
         // Serialize updates to the same booking, including concurrent moves to different rooms.
         Booking booking = bookingRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        if (dto.getUserId() == null) dto.setUserId(booking.getUser().getId());
         Room room = roomRepository.findByIdForUpdate(dto.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
         User user = userRepository.findById(dto.getUserId())
@@ -86,6 +105,7 @@ public class BookingService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(Long id) {
         if (!bookingRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found");
@@ -104,6 +124,28 @@ public class BookingService {
                 dto.getRoomId(), BookingStatus.CONFIRMED, dto.getStartTime(), dto.getEndTime(), excludedId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Room is already booked for this time interval");
         }
+    }
+
+    @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
+    public Page<BookingDto> managed(Pageable pageable) {
+        return (access.admin() ? bookingRepository.findAll(pageable)
+                : bookingRepository.findByRoomSpaceOwnerId(access.userId(), pageable)).map(EntityMapper::toDto);
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @PreAuthorize("@access.canReadBooking(#id)")
+    public BookingDto cancel(Long id) {
+        Booking booking = bookingRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        roomRepository.findByIdForUpdate(booking.getRoom().getId()).orElseThrow();
+        // An administrator may have reassigned the booking while this request waited for locks.
+        if (!access.canReadBooking(id)) throw new org.springframework.security.access.AccessDeniedException("Booking access changed");
+        if (booking.getStatus() == BookingStatus.CANCELLED) return EntityMapper.toDto(booking);
+        if (!booking.getStartTime().isAfter(LocalDateTime.now()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Started bookings cannot be cancelled");
+        booking.setStatus(BookingStatus.CANCELLED);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
+        return EntityMapper.toDto(bookingRepository.save(booking));
     }
 
     private Booking findOrThrow(Long id) {

@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.show-sql=false",
         "spring.jpa.properties.hibernate.generate_statistics=true", "spring.h2.console.enabled=false"
 })
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class CachePerformanceTests {
     @Autowired SpaceService spaces;
     @Autowired RoomService rooms;

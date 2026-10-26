@@ -1,16 +1,20 @@
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { request, type Booking, type OffsetPage, type Room, type Space, type User } from './api';
+import { AuthProvider, SessionNavigation, RequireRole, Login, Profile, useAuth } from './Auth';
+import { Management, SpaceEditor, Bookings, Administration } from './Management';
+import { request, type Booking, type OffsetPage, type Room, type Space } from './api';
 import { AnalyticsBoundary, Failure, Loading, MapBoundary, NotFound, Pagination, SpaceImage, usePage, useResource } from './components';
 
 const Analytics = lazy(() => import('./Analytics'));
 const SpacesMap = lazy(() => import('./SpacesMap'));
 
-export default function App() {
+export default function App() { return <AuthProvider><AppLayout/></AuthProvider>; }
+
+function AppLayout() {
   const location = useLocation();
   const main = useRef<HTMLElement>(null);
   useEffect(() => { main.current?.focus(); }, [location.pathname]);
-  return <><a className="skip-link" href="#main">Skip to content</a><header className="site-header"><nav className="container d-flex flex-wrap align-items-center justify-content-between gap-3 py-3" aria-label="Main navigation"><Link className="brand" to="/spaces">SpotPulse<span className="brand-dot">●</span></Link><NavLink to="/spaces" className="nav-link">Explore spaces</NavLink><NavLink to="/analytics" className="nav-link">Analytics</NavLink></nav></header><main id="main" tabIndex={-1} ref={main} className="container py-5"><Routes><Route path="/" element={<Navigate to="/spaces" replace/>}/><Route path="/spaces" element={<Spaces/>}/><Route path="/analytics" element={<AnalyticsBoundary><Suspense fallback={<Loading/>}><Analytics/></Suspense></AnalyticsBoundary>}/><Route path="/spaces/:id" element={<SpaceDetails/>}/><Route path="/rooms/:id" element={<RoomDetails/>}/><Route path="*" element={<NotFound/>}/></Routes></main><footer className="container py-4 border-top text-secondary">SpotPulse · A place for your next idea.</footer></>;
+  return <><a className="skip-link" href="#main">Skip to content</a><header className="site-header"><nav className="container d-flex flex-wrap align-items-center justify-content-between gap-3 py-3" aria-label="Main navigation"><Link className="brand" to="/spaces">SpotPulse<span className="brand-dot">●</span></Link><NavLink to="/spaces" className="nav-link">Explore spaces</NavLink><SessionNavigation/></nav></header><main id="main" tabIndex={-1} ref={main} className="container py-5"><Routes><Route path="/" element={<Navigate to="/spaces" replace/>}/><Route path="/spaces" element={<Spaces/>}/><Route path="/analytics" element={<RequireRole roles={['OWNER', 'ADMIN']}><AnalyticsBoundary><Suspense fallback={<Loading/>}><Analytics/></Suspense></AnalyticsBoundary></RequireRole>}/><Route path="/login" element={<Login/>}/><Route path="/account" element={<RequireRole><Profile/></RequireRole>}/><Route path="/bookings" element={<RequireRole><Bookings/></RequireRole>}/><Route path="/owner" element={<RequireRole roles={['OWNER', 'ADMIN']}><Management/></RequireRole>}/><Route path="/owner/spaces/new" element={<RequireRole roles={['OWNER', 'ADMIN']}><SpaceEditor/></RequireRole>}/><Route path="/owner/spaces/:id" element={<RequireRole roles={['OWNER', 'ADMIN']}><SpaceEditor/></RequireRole>}/><Route path="/admin" element={<RequireRole roles={['ADMIN']}><Administration/></RequireRole>}/><Route path="/spaces/:id" element={<SpaceDetails/>}/><Route path="/rooms/:id" element={<RoomDetails/>}/><Route path="*" element={<NotFound/>}/></Routes></main><footer className="container py-4 border-top text-secondary">SpotPulse · A place for your next idea.</footer></>;
 }
 
 function Spaces() {
@@ -55,10 +59,8 @@ function RoomDetails() {
 }
 
 function BookingForm({ room }: { room: Room }) {
-  const paging = usePage('/api/users?skip=0&limit=20');
-  const [refresh, setRefresh] = useState(0);
-  const users = useResource<OffsetPage<User>>(paging.path, refresh);
-  const [user, setUser] = useState<{ id: number; label: string } | null>(null);
+  const auth = useAuth();
+  const user = auth.user;
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [validation, setValidation] = useState<string[]>([]);
@@ -72,7 +74,7 @@ function BookingForm({ room }: { room: Room }) {
     if (pending || booking) return;
     setError(undefined); setBooking(undefined);
     const problems = [];
-    if (!user) problems.push('Choose an existing user.');
+    if (!user) problems.push('Sign in to book this room.');
     if (!start || !end) problems.push('Enter both start and end times.');
     if (start && new Date(start).getTime() <= Date.now()) problems.push('Start time must be in the future.');
     if (start && end && end <= start) problems.push('End time must be after start time.');
@@ -80,9 +82,11 @@ function BookingForm({ room }: { room: Room }) {
     if (problems.length) return;
     setPending(true);
     try {
-      setBooking(await request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ roomId: room.id, userId: user!.id, startTime: start, endTime: end }) }));
+      setBooking(await request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ roomId: room.id, startTime: start, endTime: end }) }));
     } catch (e) { setError(e as Error); }
     finally { setPending(false); }
   }
-  return <form noValidate onSubmit={submit}><p className="small text-secondary" id="booking-help">Choose an existing user for this demonstration. This selection does not sign you in. Enter times in the backend’s local time; no timezone conversion is applied.</p><fieldset disabled={pending}><legend className="visually-hidden">Booking details</legend><label htmlFor="user" className="form-label">Existing user</label>{users.error ? <Failure error={users.error} retry={() => setRefresh(r => r + 1)}/> : !users.data ? <Loading/> : <><select id="user" className="form-select" value={users.data.items.some(u => u.id === user?.id) ? user!.id : ''} onChange={e => { const found = users.data!.items.find(u => u.id === Number(e.target.value)); setUser(found ? { id: found.id, label: `${found.name} (${found.email})` } : null); }} aria-describedby="booking-help" required><option value="">Choose a user</option>{users.data.items.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}</select>{users.data.total === 0 && <p>No users exist yet. Create one through the existing REST API before booking.</p>}<Pagination page={users.data} previous={paging.previous} onPrevious={paging.back} onNext={() => paging.next(users.data!.nextLink)}/></>}{user && <p className="small mt-2">Selected: {user.label}</p>}<label htmlFor="start" className="form-label mt-3">Start time</label><input id="start" className="form-control" type="datetime-local" required value={start} onChange={e => setStart(e.target.value)}/><label htmlFor="end" className="form-label mt-3">End time</label><input id="end" className="form-control" type="datetime-local" required value={end} onChange={e => setEnd(e.target.value)}/><button className="btn btn-primary mt-4" disabled={pending || !!booking}>{pending ? 'Submitting booking…' : booking ? 'Booking confirmed' : 'Confirm booking'}</button></fieldset><div ref={result} tabIndex={-1} className="mt-3">{pending && <p role="status">Checking availability and saving your booking…</p>}{validation.length > 0 && <div role="alert" className="alert alert-danger"><ul className="mb-0">{validation.map(message => <li key={message}>{message}</li>)}</ul></div>}{error && <Failure error={error}/>} {booking && <div role="status" className="alert alert-success"><h3 className="h5">Booking #{booking.id} saved</h3><p>{booking.roomName} · {booking.userName}</p><p>{booking.startTime.replace('T', ' ')} → {booking.endTime.replace('T', ' ')}</p><p>Status: {booking.status}</p><button type="button" className="btn btn-outline-success" onClick={() => { setBooking(undefined); setStart(''); setEnd(''); }}>Make another booking</button></div>}</div></form>;
+  if (auth.loading) return <Loading/>;
+  if (!user) return <p>Sign in to book this room. <Link to="/login">Sign in with Google</Link></p>;
+  return <form noValidate onSubmit={submit}><p id="booking-help">Booking as {user.name}. Times use the backend's stored calendar time; no timezone conversion is applied.</p><fieldset disabled={pending}><legend className="visually-hidden">Booking details</legend><label htmlFor="start" className="form-label mt-3">Start time</label><input id="start" className="form-control" type="datetime-local" required value={start} onChange={e => setStart(e.target.value)}/><label htmlFor="end" className="form-label mt-3">End time</label><input id="end" className="form-control" type="datetime-local" required value={end} onChange={e => setEnd(e.target.value)}/><button className="btn btn-primary mt-4" disabled={pending || !!booking}>{pending ? 'Submitting booking…' : booking ? 'Booking confirmed' : 'Confirm booking'}</button></fieldset><div ref={result} tabIndex={-1} className="mt-3">{pending && <p role="status">Checking availability and saving your booking…</p>}{validation.length > 0 && <div role="alert" className="alert alert-danger"><ul className="mb-0">{validation.map(message => <li key={message}>{message}</li>)}</ul></div>}{error && <Failure error={error}/>} {booking && <div role="status" className="alert alert-success"><h3 className="h5">Booking #{booking.id} saved</h3><p>{booking.roomName} · {booking.userName}</p><p>{booking.startTime.replace('T', ' ')} → {booking.endTime.replace('T', ' ')}</p><p>Status: {booking.status}</p><button type="button" className="btn btn-outline-success" onClick={() => { setBooking(undefined); setStart(''); setEnd(''); }}>Make another booking</button></div>}</div></form>;
 }

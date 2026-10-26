@@ -11,6 +11,7 @@ import jakarta.persistence.LockModeType;
 import java.util.Optional;
 
 public interface RoomRepository extends JpaRepository<Room, Long> {
+    boolean existsByIdAndSpaceOwnerId(Long id, Long ownerId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Room r where r.id = :id")
     Optional<Room> findByIdForUpdate(@Param("id") Long id);
