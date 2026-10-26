@@ -18,6 +18,9 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 3rem;
         }
         .hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .space-search-panel { z-index: 1050; max-height: 24rem; overflow-y: auto; }
+        .space-search-option { cursor: pointer; overflow-wrap: anywhere; }
+        .space-search-option[aria-selected="true"] { background: #e8edff; outline: 2px solid #5368cd; outline-offset: -2px; }
     </style>
 </head>
 <body>
@@ -39,6 +42,22 @@
     <a th:href="@{/spaces/new}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i>Додати
     </a>
+</div>
+
+<div class="container mb-4">
+    <div id="space-search" class="position-relative" th:attr="data-url=@{/api/spaces/autocomplete},data-detail-url=@{/spaces/}">
+        <label for="space-search-input" class="form-label fw-semibold">Пошук коворкінгу</label>
+        <input id="space-search-input" type="search" class="form-control form-control-lg"
+               maxlength="100" autocomplete="off" role="combobox" aria-autocomplete="list"
+               aria-expanded="false" aria-controls="space-search-results" aria-haspopup="listbox"
+               aria-describedby="space-search-help" placeholder="Назва або місто"/>
+        <div id="space-search-panel" class="space-search-panel position-absolute top-100 start-0 w-100 bg-white border rounded shadow" hidden>
+            <ul id="space-search-results" role="listbox" aria-label="Коворкінги" class="list-unstyled mb-0"></ul>
+            <p id="space-search-status" role="status" aria-live="polite" class="small text-muted m-0 p-3"></p>
+        </div>
+    </div>
+    <p id="space-search-help" class="form-text">Введіть щонайменше 3 літери або цифри. Оберіть результат стрілками та натисніть Enter.</p>
+    <noscript><p class="text-muted">Увімкніть JavaScript для швидкого пошуку. Простори також доступні нижче.</p></noscript>
 </div>
 
 <!-- Cards -->
@@ -96,6 +115,9 @@
     </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script th:src="@{/js/space-autocomplete.js}" src="/js/space-autocomplete.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

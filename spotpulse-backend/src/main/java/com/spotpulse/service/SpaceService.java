@@ -2,6 +2,7 @@ package com.spotpulse.service;
 
 import com.spotpulse.dto.SpaceCreateDto;
 import com.spotpulse.dto.SpaceDto;
+import com.spotpulse.dto.SpaceSuggestionDto;
 import com.spotpulse.mapper.EntityMapper;
 import com.spotpulse.model.Space;
 import com.spotpulse.repository.SpaceRepository;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Validated
@@ -25,8 +27,26 @@ import java.util.List;
 public class SpaceService {
 
     public static final int SITEMAP_PAGE_SIZE = 1000;
+    public static final int AUTOCOMPLETE_LIMIT = 8;
+    public static final int AUTOCOMPLETE_MAX_LENGTH = 100;
 
     private final SpaceRepository spaceRepository;
+
+    public List<SpaceSuggestionDto> autocomplete(String query) {
+        if (query == null) return List.of();
+        if (query.length() > AUTOCOMPLETE_MAX_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query must be at most 100 characters");
+        }
+        String trimmed = query.strip();
+        if (trimmed.codePoints().anyMatch(Character::isISOControl)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query contains invalid characters");
+        }
+        // Spaces and punctuation do not count toward the three meaningful character threshold.
+        if (trimmed.codePoints().filter(Character::isLetterOrDigit).count() < 3) return List.of();
+        String pattern = "%" + trimmed.toLowerCase(Locale.ROOT)
+                .replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        return spaceRepository.autocomplete(pattern, PageRequest.of(0, AUTOCOMPLETE_LIMIT));
+    }
 
     public long countSpaces() {
         return spaceRepository.count();

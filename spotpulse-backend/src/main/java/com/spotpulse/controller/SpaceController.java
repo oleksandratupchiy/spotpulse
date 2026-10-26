@@ -2,6 +2,7 @@ package com.spotpulse.controller;
 
 import com.spotpulse.dto.SpaceCreateDto;
 import com.spotpulse.dto.SpaceDto;
+import com.spotpulse.dto.SpaceSuggestionDto;
 import com.spotpulse.service.SpaceService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/spaces")
@@ -18,6 +20,11 @@ import org.springframework.web.bind.annotation.*;
 public class SpaceController {
 
     private final SpaceService spaceService;
+
+    @GetMapping("/autocomplete")
+    public List<SpaceSuggestionDto> autocomplete(@RequestParam(required = false) String q) {
+        return spaceService.autocomplete(q);
+    }
 
     /** GET /api/spaces?page=0&size=10&sort=name,asc  або  ?city=Kyiv  або  ?search=cowork */
     @GetMapping
