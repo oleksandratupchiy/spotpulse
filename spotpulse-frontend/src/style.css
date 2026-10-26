@@ -20,6 +20,9 @@ a { color: #24685c; text-underline-offset: .2rem; }
 .back-link { display: inline-block; margin-bottom: 1rem; }
 :focus-visible { outline: 3px solid #99731b !important; outline-offset: 3px; }
 main:focus { outline: none; }
+.map-panel { padding: 1.25rem; background: white; border: 1px solid #dde6dd; border-radius: 1rem; }
+.spaces-map { height: clamp(320px, 55vh, 540px); width: 100%; border-radius: .75rem; z-index: 0; background: #e5edde; }
+.space-marker span { display: grid; place-items: center; width: 32px; height: 32px; border: 2px solid white; border-radius: 50% 50% 50% 0; background: #24685c; color: white; font-weight: bold; box-shadow: 0 2px 5px #163e3a80; }
 .skip-link { position: absolute; left: 1rem; top: -5rem; padding: 1rem; background: white; z-index: 10; }
 .skip-link:focus { top: 1rem; }
 p, h1, h2, h3, a, dd { overflow-wrap: anywhere; }

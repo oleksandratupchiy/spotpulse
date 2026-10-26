@@ -26,6 +26,8 @@ public final class EntityMapper {
         dto.setCity(space.getCity());
         dto.setImageUrl(space.getImageUrl());
         dto.setContactEmail(space.getContactEmail());
+        dto.setLatitude(space.getLatitude());
+        dto.setLongitude(space.getLongitude());
 
         List<RoomDto> roomDtos = space.getRooms() != null
                 ? space.getRooms().stream().map(EntityMapper::toDto).toList()
@@ -43,10 +45,19 @@ public final class EntityMapper {
         space.setCity(dto.getCity());
         space.setImageUrl(dto.getImageUrl());
         space.setContactEmail(dto.getContactEmail());
+        space.setLatitude(dto.getLatitude());
+        space.setLongitude(dto.getLongitude());
         return space;
     }
 
     public static void updateEntity(Space space, SpaceCreateDto dto) {
+        // Legacy forms omit coordinates: preserve them unless the address changes.
+        boolean addressChanged = !java.util.Objects.equals(space.getAddress(), dto.getAddress())
+                || !java.util.Objects.equals(space.getCity(), dto.getCity());
+        if (dto.getLatitude() != null || addressChanged) {
+            space.setLatitude(dto.getLatitude());
+            space.setLongitude(dto.getLongitude());
+        }
         space.setName(dto.getName());
         space.setDescription(dto.getDescription());
         space.setAddress(dto.getAddress());

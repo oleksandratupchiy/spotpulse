@@ -32,6 +32,29 @@ public class SpaceService {
 
     private final SpaceRepository spaceRepository;
 
+    public com.spotpulse.dto.SpaceMapResponse mapData(String city, String search, int limit) {
+        if (limit < 1 || limit > 200) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Map limit must be between 1 and 200");
+        }
+        city = mapFilter(city);
+        search = mapFilter(search);
+        // Keep the established listing's search-over-city precedence.
+        if (!search.isBlank()) city = "";
+        var page = PageRequest.of(0, limit, org.springframework.data.domain.Sort.by("id"));
+        var located = spaceRepository.mapData(city, search, true, page);
+        long total = spaceRepository.mapData(city, search, false, PageRequest.of(0, 1)).getTotalElements();
+        return new com.spotpulse.dto.SpaceMapResponse(located.getContent(), total,
+                located.getTotalElements(), total - located.getTotalElements(), limit, located.hasNext());
+    }
+
+    private String mapFilter(String value) {
+        if (value == null) return "";
+        if (value.length() > 255 || value.codePoints().anyMatch(Character::isISOControl)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid map filter (maximum 255 characters)");
+        }
+        return value.isBlank() ? "" : value;
+    }
+
     public List<SpaceSuggestionDto> autocomplete(String query) {
         if (query == null) return List.of();
         if (query.length() > AUTOCOMPLETE_MAX_LENGTH) {

@@ -30,6 +30,14 @@ public class Space {
     @Column(nullable = false)
     private String city;
 
+    @jakarta.validation.constraints.DecimalMin("-90")
+    @jakarta.validation.constraints.DecimalMax("90")
+    private Double latitude;
+
+    @jakarta.validation.constraints.DecimalMin("-180")
+    @jakarta.validation.constraints.DecimalMax("180")
+    private Double longitude;
+
     /** URL-посилання на зображення простору (вимога C1) */
     private String imageUrl;
 

@@ -21,6 +21,14 @@ public class SpaceController {
 
     private final SpaceService spaceService;
 
+    @GetMapping("/map")
+    public com.spotpulse.dto.SpaceMapResponse mapData(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "200") int limit) {
+        return spaceService.mapData(city, search, limit);
+    }
+
     @GetMapping("/autocomplete")
     public List<SpaceSuggestionDto> autocomplete(@RequestParam(required = false) String q) {
         return spaceService.autocomplete(q);

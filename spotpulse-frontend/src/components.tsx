@@ -1,6 +1,17 @@
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, request, type OffsetPage } from './api';
+
+// A failed lazy map chunk must not take down discovery or booking navigation.
+export class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    return this.state.failed
+      ? <p role="alert" className="alert alert-warning">The map could not be loaded. Refresh the page to try again, or explore the space list below.</p>
+      : this.props.children;
+  }
+}
 
 export function useResource<T>(path: string, refresh = 0) {
   const [state, setState] = useState<{ path: string; data?: T; error?: Error }>({ path });

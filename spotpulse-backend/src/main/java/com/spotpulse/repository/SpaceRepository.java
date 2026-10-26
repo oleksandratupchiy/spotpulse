@@ -13,6 +13,18 @@ import java.util.List;
 public interface SpaceRepository extends JpaRepository<Space, Long> {
 
     @Query("""
+            select new com.spotpulse.dto.SpaceMapDto(s.id, s.name, s.city, s.address, s.latitude, s.longitude)
+            from Space s
+            where (:city = '' or s.city = :city)
+            and (:search = '' or lower(s.name) like lower(concat('%', :search, '%'))
+                or lower(s.city) like lower(concat('%', :search, '%'))
+                or lower(s.address) like lower(concat('%', :search, '%')))
+            and (:locatedOnly = false or (s.latitude is not null and s.longitude is not null))
+            """)
+    Page<com.spotpulse.dto.SpaceMapDto> mapData(@Param("city") String city,
+            @Param("search") String search, @Param("locatedOnly") boolean locatedOnly, Pageable pageable);
+
+    @Query("""
             select new com.spotpulse.dto.SpaceSuggestionDto(s.id, s.name, s.city, s.address)
             from Space s
             where lower(s.name) like :pattern escape '!' or lower(s.city) like :pattern escape '!'
