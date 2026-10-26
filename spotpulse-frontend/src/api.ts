@@ -6,6 +6,13 @@ export interface User { id: number; name: string; email: string; role: string }
 export interface Booking { id: number; roomId: number; roomName: string; userId: number; userName: string; startTime: string; endTime: string; status: string }
 export interface OffsetPage<T> { items: T[]; skip: number; limit: number; total: number; nextLink: string | null }
 export interface BookingInput { roomId: number; userId: number; startTime: string; endTime: string }
+export interface BookingAnalytics {
+  from: string; to: string; grouping: 'BOOKING_START_DATE'; total: number;
+  statuses: { confirmed: number; cancelled: number };
+  daily: { date: string; confirmed: number; cancelled: number }[];
+  popularRoomsLimit: number;
+  popularRooms: { roomId: number; roomName: string; spaceId: number; spaceName: string; count: number }[];
+}
 const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
 // B1 returns backend-relative /api links. Keep the configured origin/base for every page.

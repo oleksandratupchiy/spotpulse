@@ -13,6 +13,16 @@ export class MapBoundary extends Component<{ children: ReactNode }, { failed: bo
   }
 }
 
+export class AnalyticsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    return this.state.failed
+      ? <p role="alert" className="alert alert-warning">Analytics could not be displayed. Refresh the page to try again.</p>
+      : this.props.children;
+  }
+}
+
 export function useResource<T>(path: string, refresh = 0) {
   const [state, setState] = useState<{ path: string; data?: T; error?: Error }>({ path });
   useEffect(() => {

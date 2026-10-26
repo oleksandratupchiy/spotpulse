@@ -1,15 +1,16 @@
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { request, type Booking, type OffsetPage, type Room, type Space, type User } from './api';
-import { Failure, Loading, MapBoundary, NotFound, Pagination, SpaceImage, usePage, useResource } from './components';
+import { AnalyticsBoundary, Failure, Loading, MapBoundary, NotFound, Pagination, SpaceImage, usePage, useResource } from './components';
 
+const Analytics = lazy(() => import('./Analytics'));
 const SpacesMap = lazy(() => import('./SpacesMap'));
 
 export default function App() {
   const location = useLocation();
   const main = useRef<HTMLElement>(null);
   useEffect(() => { main.current?.focus(); }, [location.pathname]);
-  return <><a className="skip-link" href="#main">Skip to content</a><header className="site-header"><nav className="container d-flex flex-wrap align-items-center justify-content-between gap-3 py-3" aria-label="Main navigation"><Link className="brand" to="/spaces">SpotPulse<span className="brand-dot">●</span></Link><NavLink to="/spaces" className="nav-link">Explore spaces</NavLink></nav></header><main id="main" tabIndex={-1} ref={main} className="container py-5"><Routes><Route path="/" element={<Navigate to="/spaces" replace/>}/><Route path="/spaces" element={<Spaces/>}/><Route path="/spaces/:id" element={<SpaceDetails/>}/><Route path="/rooms/:id" element={<RoomDetails/>}/><Route path="*" element={<NotFound/>}/></Routes></main><footer className="container py-4 border-top text-secondary">SpotPulse · A place for your next idea.</footer></>;
+  return <><a className="skip-link" href="#main">Skip to content</a><header className="site-header"><nav className="container d-flex flex-wrap align-items-center justify-content-between gap-3 py-3" aria-label="Main navigation"><Link className="brand" to="/spaces">SpotPulse<span className="brand-dot">●</span></Link><NavLink to="/spaces" className="nav-link">Explore spaces</NavLink><NavLink to="/analytics" className="nav-link">Analytics</NavLink></nav></header><main id="main" tabIndex={-1} ref={main} className="container py-5"><Routes><Route path="/" element={<Navigate to="/spaces" replace/>}/><Route path="/spaces" element={<Spaces/>}/><Route path="/analytics" element={<AnalyticsBoundary><Suspense fallback={<Loading/>}><Analytics/></Suspense></AnalyticsBoundary>}/><Route path="/spaces/:id" element={<SpaceDetails/>}/><Route path="/rooms/:id" element={<RoomDetails/>}/><Route path="*" element={<NotFound/>}/></Routes></main><footer className="container py-4 border-top text-secondary">SpotPulse · A place for your next idea.</footer></>;
 }
 
 function Spaces() {
