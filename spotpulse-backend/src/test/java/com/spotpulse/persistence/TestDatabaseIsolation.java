@@ -20,6 +20,10 @@ public class TestDatabaseIsolation implements EnvironmentPostProcessor, Ordered 
         // All automated tests are offline, even if the launching shell has a real bot credential.
         environment.getPropertySources().addFirst(new MapPropertySource("offlineTelegramTests",
                 Map.of("spotpulse.telegram.enabled", "false")));
+        // No automated context may write to the developer's image directory.
+        environment.getPropertySources().addFirst(new MapPropertySource("isolatedImageStorage",
+                Map.of("spotpulse.images.directory", Path.of(System.getProperty("java.io.tmpdir"),
+                        "spotpulse-images-test-" + UUID.randomUUID()).toString())));
         String url = environment.getProperty("spring.datasource.url", "");
         String poolUrl = environment.getProperty("spring.datasource.hikari.jdbc-url");
         if (poolUrl != null && !poolUrl.equals(url)) throw new IllegalStateException("Tests refuse a separate Hikari JDBC URL override");

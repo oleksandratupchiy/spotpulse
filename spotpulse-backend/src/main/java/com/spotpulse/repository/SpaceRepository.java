@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface SpaceRepository extends JpaRepository<Space, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Space s where s.id = :id")
+    java.util.Optional<Space> findByIdForUpdate(@Param("id") Long id);
     Page<Space> findByOwnerId(Long ownerId, Pageable pageable);
     boolean existsByIdAndOwnerId(Long id, Long ownerId);
     boolean existsByOwnerId(Long ownerId);

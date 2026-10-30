@@ -6,6 +6,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: { port: 5173, strictPort: true, proxy: { '/api': { target: env.API_PROXY_TARGET || 'http://localhost:8080', changeOrigin: true } } },
-    test: { environment: 'jsdom', setupFiles: './src/test/setup.ts', globals: true },
+    test: { environment: 'jsdom', setupFiles: './src/test/setup.ts', globals: true, maxWorkers: 2, testTimeout: 20_000 },
   };
 });

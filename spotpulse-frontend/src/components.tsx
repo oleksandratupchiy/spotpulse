@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ApiError, request, type OffsetPage } from './api';
+import { ApiError, apiUrl, request, type OffsetPage } from './api';
 
 // A failed lazy map chunk must not take down discovery or booking navigation.
 export class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -50,8 +50,8 @@ export function usePage(initial: string) {
   return { path: root === initial ? history[history.length - 1] : initial, previous: history.length > 1, next: (link: string | null) => { if (link) setHistory(h => [...h, link]); }, back: () => setHistory(h => h.slice(0, -1)) };
 }
 export function SpaceImage({ url, name }: { url: string | null; name: string }) {
-  const [failed, setFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>();
   const safe = url && (/^https?:\/\//i.test(url) || (url.startsWith('/') && !url.startsWith('//')));
-  return safe && !failed ? <img className="space-image" src={url} alt={name} onError={() => setFailed(true)} loading="lazy"/> : <div className="image-placeholder">SpotPulse · Coworking space</div>;
+  return safe && failedUrl !== url ? <img className="space-image" src={url.startsWith('/api/spaces/images/') ? apiUrl(url) : url} alt={name} onError={() => setFailedUrl(url)} loading="lazy"/> : <div className="image-placeholder">SpotPulse · Coworking space</div>;
 }
 export function NotFound() { return <section><h1>Page not found</h1><p>Let’s find your next workspace.</p><Link to="/spaces" className="btn btn-primary">Explore spaces</Link></section>; }

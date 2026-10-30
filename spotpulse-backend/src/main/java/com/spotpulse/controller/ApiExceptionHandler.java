@@ -30,6 +30,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             case 400 -> "Invalid request input";
             case 404 -> "Resource not found";
             case 409 -> "Request conflicts with existing data";
+            case 413 -> "Image must be at most 8 MiB";
             default -> status.is5xxServerError() ? "An unexpected error occurred" : "Request could not be processed";
         };
         if (ex instanceof ResponseStatusException statusException && !status.is5xxServerError()

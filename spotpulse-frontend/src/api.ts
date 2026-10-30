@@ -29,7 +29,7 @@ export class ApiError extends Error {
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
-    const headers: Record<string, string> = { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers as Record<string, string> };
+    const headers: Record<string, string> = { Accept: 'application/json', ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...options.headers as Record<string, string> };
     if (!['GET', 'HEAD', 'OPTIONS'].includes((options.method || 'GET').toUpperCase())) {
       // Obtain a fresh masked session token for each mutation, including after login/logout.
       const csrfResponse = await fetch(apiUrl('/api/auth/csrf'), { credentials: 'same-origin', headers: { Accept: 'application/json' } });

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { request, type Space, type Booking, type OffsetPage, type User } from './api';
-import { Failure, Loading, Pagination, usePage, useResource } from './components';
+import { Failure, Loading, Pagination, SpaceImage, usePage, useResource } from './components';
+import { ImagePicker } from './ImagePicker';
+import { attachSpaceImage } from './images';
 import { useAuth } from './Auth';
 import { PremiumAdministration, SpacePremium } from './Premium';
 
@@ -54,25 +56,38 @@ function ExistingSpace({ id, refresh, changed }: { id: string; refresh: number; 
   return <><SpaceForm key={refresh} space={data} changed={changed}/><SpacePremium space={data}/><RoomEditor space={data} changed={changed}/></>;
 }
 
-function SpaceForm({ space, changed }: { space?: Space; changed?: () => void }) {
+export function SpaceForm({ space, changed }: { space?: Space; changed?: () => void }) {
   const navigate = useNavigate(); const [error, setError] = useState<Error>(); const [pending, setPending] = useState(false);
+  const [image, setImage] = useState<File>(); const [validating, setValidating] = useState(false);
+  const [savedId, setSavedId] = useState<number | undefined>(space?.id);
+  const [attachmentPending, setAttachmentPending] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const fields = new FormData(event.currentTarget);
+    if (pending || validating) return;
     const body: Record<string, unknown> = Object.fromEntries(fields.entries());
     for (const key of ['latitude', 'longitude']) body[key] = fields.get(key) === '' ? null : Number(fields.get(key));
     setPending(true); setError(undefined);
     try {
-      const saved = await request<Space>(space ? `/api/spaces/${space.id}` : '/api/spaces', { method: space ? 'PUT' : 'POST', body: JSON.stringify(body) });
+      const saved = await request<Space>(savedId ? `/api/spaces/${savedId}` : '/api/spaces', { method: savedId ? 'PUT' : 'POST', body: JSON.stringify(body) });
+      setSavedId(saved.id);
+      if (image) {
+        setAttachmentPending(true);
+        try { await attachSpaceImage(saved.id, image); setAttachmentPending(false); }
+        catch (failure) { throw new Error(`Space #${saved.id} was saved, but the image was not attached. ${(failure as Error).message} Your selection is retained; Save space retries on the same space.`); }
+      }
       if (!space) navigate(`/owner/spaces/${saved.id}`); else changed?.();
     } catch (error) { setError(error as Error); } finally { setPending(false); }
   }
   return <section className="card card-body p-4 mt-4"><h1 className="h3">{space ? 'Edit space' : 'Create coworking space'}</h1>
     {error && <Failure error={error}/>}
+    {attachmentPending && <p role="status">The image still needs to be attached to saved space #{savedId}.</p>}
+    {space && <SpaceImage key={space.imageUrl} url={space.imageUrl} name={space.name}/>}
     <form onSubmit={submit}><fieldset disabled={pending}><legend className="visually-hidden">Space details</legend><div className="row g-3">
       {(['name', 'city', 'address', 'imageUrl', 'contactEmail'] as const).map(field => <div className="col-md-6" key={field}><label htmlFor={`space-${field}`} className="form-label">{{ name: 'Space name', city: 'City', address: 'Address', imageUrl: 'Image URL', contactEmail: 'Public contact email' }[field]}</label><input id={`space-${field}`} name={field} className="form-control" maxLength={field === 'contactEmail' ? 254 : 255} type={field === 'contactEmail' ? 'email' : 'text'} required={['name', 'city', 'address'].includes(field)} defaultValue={space?.[field] || ''}/></div>)}
+      <ImagePicker onChange={setImage} onValidating={setValidating}/>
       <div className="col-12"><label htmlFor="space-description" className="form-label">Description</label><textarea id="space-description" name="description" maxLength={2000} className="form-control" defaultValue={space?.description || ''}/></div>
       {(['latitude', 'longitude'] as const).map(field => <div className="col-sm-6" key={field}><label htmlFor={`space-${field}`} className="form-label">{field === 'latitude' ? 'Latitude' : 'Longitude'} (optional)</label><input id={`space-${field}`} className="form-control" name={field} type="number" step="any" min={field === 'latitude' ? -90 : -180} max={field === 'latitude' ? 90 : 180} defaultValue={space?.[field] ?? ''}/></div>)}
-    </div><p className="small mt-3">Only enter independently confirmed coordinates, as a pair. Changing the address without coordinates clears the old location.</p><button className="btn btn-primary mt-2">{pending ? 'Saving…' : 'Save space'}</button></fieldset></form>
+    </div><p className="small mt-3">Only enter independently confirmed coordinates, as a pair. Changing the address without coordinates clears the old location.</p><button className="btn btn-primary mt-2" disabled={validating}>{pending ? 'Saving…' : 'Save space'}</button></fieldset></form>
     {space && <button className="btn btn-outline-danger mt-4 align-self-start" disabled={pending} onClick={async () => {
       if (!window.confirm('Delete this space, its rooms and bookings?')) return;
       setPending(true); try { await request(`/api/spaces/${space.id}`, { method: 'DELETE' }); navigate('/owner'); } catch (error) { setError(error as Error); setPending(false); }
