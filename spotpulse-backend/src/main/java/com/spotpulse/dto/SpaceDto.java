@@ -7,7 +7,6 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class SpaceDto {
     private Long id;
     private String name;
@@ -19,6 +18,16 @@ public class SpaceDto {
     private String contactEmail;
     private Double latitude;
     private Double longitude;
+    private boolean premium;
+    private boolean featured;
+    private boolean premiumBadge;
+
+    public SpaceDto(Long id, String name, String description, String address, String city,
+                    String imageUrl, List<RoomDto> rooms, String contactEmail, Double latitude, Double longitude) {
+        this.id = id; this.name = name; this.description = description; this.address = address; this.city = city;
+        this.imageUrl = imageUrl; this.rooms = rooms; this.contactEmail = contactEmail;
+        this.latitude = latitude; this.longitude = longitude;
+    }
 
     public SpaceDto(Long id, String name, String description, String address, String city,
                     String imageUrl, List<RoomDto> rooms, String contactEmail) {

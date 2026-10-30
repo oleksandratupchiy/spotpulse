@@ -29,3 +29,4 @@ main:focus { outline: none; }
 .skip-link { position: absolute; left: 1rem; top: -5rem; padding: 1rem; background: white; z-index: 10; }
 .skip-link:focus { top: 1rem; }
 p, h1, h2, h3, a, dd { overflow-wrap: anywhere; }
+[aria-labelledby="premium-admin-title"] .btn { overflow-wrap: anywhere; max-width: 100%; }

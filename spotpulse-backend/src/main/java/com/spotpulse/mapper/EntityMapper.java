@@ -28,6 +28,7 @@ public final class EntityMapper {
         dto.setContactEmail(space.getContactEmail());
         dto.setLatitude(space.getLatitude());
         dto.setLongitude(space.getLongitude());
+        dto.setPremium(space.isPremium());
 
         List<RoomDto> roomDtos = space.getRooms() != null
                 ? space.getRooms().stream().map(EntityMapper::toDto).toList()

@@ -1,5 +1,8 @@
 export interface Room { id: number; name: string; capacity: number; hourlyRate: number; spaceId: number; spaceName: string }
-export interface Space { id: number; name: string; description: string | null; city: string; address: string; imageUrl: string | null; contactEmail: string | null; rooms: Room[]; latitude?: number | null; longitude?: number | null }
+export interface Space { id: number; name: string; description: string | null; city: string; address: string; imageUrl: string | null; contactEmail: string | null; rooms: Room[]; latitude?: number | null; longitude?: number | null; premium?: boolean; featured?: boolean; premiumBadge?: boolean }
+export interface FeatureFlag { key: string; description: string; enabled: boolean }
+export interface PremiumState { premium: boolean; featured: boolean; analytics: boolean; badges: boolean }
+export interface RoomPerformance { spaceId: number; from: string; to: string; grouping: string; rooms: { roomId: number; roomName: string; confirmed: number; cancelled: number; cancellationRate: number }[] }
 export interface MapSpace { id: number; name: string; city: string; address: string; latitude: number; longitude: number }
 export interface MapData { items: MapSpace[]; total: number; located: number; missingCoordinates: number; limit: number; truncated: boolean }
 export interface User { id: number; name: string; email: string; role: string }

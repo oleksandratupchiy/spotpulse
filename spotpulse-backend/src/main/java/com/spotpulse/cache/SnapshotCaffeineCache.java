@@ -23,10 +23,15 @@ public class SnapshotCaffeineCache extends CaffeineCache {
 
     private static Object copy(Object value) {
         return switch (value) {
-            case SpaceDto space -> new SpaceDto(space.getId(), space.getName(), space.getDescription(),
-                    space.getAddress(), space.getCity(), space.getImageUrl(),
-                    space.getRooms().stream().map(SnapshotCaffeineCache::roomCopy).toList(),
-                    space.getContactEmail(), space.getLatitude(), space.getLongitude());
+            case SpaceDto space -> {
+                var dto = new SpaceDto(space.getId(), space.getName(), space.getDescription(),
+                        space.getAddress(), space.getCity(), space.getImageUrl(),
+                        space.getRooms().stream().map(SnapshotCaffeineCache::roomCopy).toList(),
+                        space.getContactEmail(), space.getLatitude(), space.getLongitude());
+                dto.setPremium(space.isPremium()); dto.setFeatured(space.isFeatured()); dto.setPremiumBadge(space.isPremiumBadge());
+                yield dto;
+            }
+            case com.spotpulse.premium.RoomPerformanceDto performance -> performance;
             case RoomDto room -> roomCopy(room);
             case SpaceMapResponse map -> new SpaceMapResponse(List.copyOf(map.items()), map.total(),
                     map.located(), map.missingCoordinates(), map.limit(), map.truncated());

@@ -30,6 +30,7 @@ import java.util.Locale;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SpaceService {
+    private final com.spotpulse.premium.FeatureFlags flags;
     private final AccessPolicy access;
 
     private final ApplicationEventPublisher events;
@@ -92,8 +93,9 @@ public class SpaceService {
     }
 
     public Page<SpaceDto> getAll(Pageable pageable) {
-        return spaceRepository.findAll(pageable)
-                .map(EntityMapper::toDto);
+        var state = flags.state();
+        return spaceRepository.findAll(discoveryPage(pageable, state.featured()))
+                .map(s -> discoveryDto(s, state));
     }
 
     @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
@@ -115,19 +117,50 @@ public class SpaceService {
     }
 
     public Page<SpaceDto> getByCity(String city, Pageable pageable) {
-        return spaceRepository.findByCity(city, pageable)
-                .map(EntityMapper::toDto);
+        var state = flags.state();
+        return spaceRepository.findByCity(city, discoveryPage(pageable, state.featured()))
+                .map(s -> discoveryDto(s, state));
     }
 
     public Page<SpaceDto> search(String query, Pageable pageable) {
-        return spaceRepository.search(query, pageable)
-                .map(EntityMapper::toDto);
+        var state = flags.state();
+        return spaceRepository.search(query, discoveryPage(pageable, state.featured()))
+                .map(s -> discoveryDto(s, state));
     }
 
     @Cacheable(cacheNames = "spaceDetails", key = "@readCaches.key('spaceDetails', #id)", condition = "@readCaches.allowed()")
     public SpaceDto getById(Long id) {
         Space space = findOrThrow(id);
-        return EntityMapper.toDto(space);
+        // Flags cannot affect an ordinary space. Preserve the existing two-query detail path.
+        return space.isPremium() ? discoveryDto(space, flags.state()) : EntityMapper.toDto(space);
+    }
+
+    private SpaceDto discoveryDto(Space space, com.spotpulse.premium.FeatureFlags.State state) {
+        var dto = EntityMapper.toDto(space);
+        dto.setFeatured(space.isPremium() && state.featured());
+        dto.setPremiumBadge(space.isPremium() && state.featured() && state.badges());
+        return dto;
+    }
+
+    private Pageable discoveryPage(Pageable page, boolean featured) {
+        // Preserve exact offsets (including offsets not divisible by the limit).
+        // Ignore caller-supplied premium sorting, so flags cannot be bypassed with sort=premium.
+        var orders = page.getSort().stream().filter(o -> !o.getProperty().equals("premium")).toList();
+        var sort = org.springframework.data.domain.Sort.by(orders);
+        if (sort.getOrderFor("id") == null) sort = sort.and(org.springframework.data.domain.Sort.by("id"));
+        if (featured) sort = org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "premium").and(sort);
+        if (page.isUnpaged()) return Pageable.unpaged(sort);
+        return new com.spotpulse.pagination.OffsetPageable(page.getOffset(), page.getPageSize(), sort);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public SpaceDto setPremium(Long id, boolean enabled) {
+        Space space = findOrThrow(id);
+        space.setPremium(enabled);
+        spaceRepository.save(space);
+        events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
+        return discoveryDto(space, flags.state());
     }
 
     @Transactional

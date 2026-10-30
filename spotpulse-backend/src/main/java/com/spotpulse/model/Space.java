@@ -49,6 +49,10 @@ public class Space {
     @JoinColumn(name = "owner_id")
     private User owner;
 
+    // Portable H2/PostgreSQL default also backfills existing rows during ddl-auto=update.
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean premium;
+
     @OneToMany(mappedBy = "space", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Room> rooms = new ArrayList<>();
 }

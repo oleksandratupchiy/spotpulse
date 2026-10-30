@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { request, type Space, type Booking, type OffsetPage, type User } from './api';
 import { Failure, Loading, Pagination, usePage, useResource } from './components';
 import { useAuth } from './Auth';
+import { PremiumAdministration, SpacePremium } from './Premium';
 
 export function Bookings({ managed = false }: { managed?: boolean }) {
   const page = usePage(`/api/${managed ? 'management/' : ''}bookings?skip=0&limit=10`);
@@ -33,7 +34,7 @@ export function Management() {
   return <><section className="hero"><h1>Manage coworking spaces</h1><p>Owners manage their spaces; administrators can manage all spaces.</p><Link className="btn btn-primary" to="/owner/spaces/new">Create space</Link> <Link to="/analytics">Booking analytics</Link></section>
     {error ? <Failure error={error} retry={() => setRefresh(v => v + 1)}/> : !data ? <Loading/> : <>
       {!data.items.length && <p>No managed spaces yet.</p>}
-      <div className="row g-3 mt-2">{data.items.map(space => <article className="col-md-6" key={space.id}><div className="card card-body"><h2 className="h5">{space.name}</h2><p>{space.city} · {space.address}</p><Link to={`/owner/spaces/${space.id}`}>Edit space and rooms</Link></div></article>)}</div>
+      <div className="row g-3 mt-2">{data.items.map(space => <article className="col-md-6" key={space.id}><div className="card card-body"><h2 className="h5">{space.name}</h2><p>{space.city} · {space.address}</p><Link to={`/owner/spaces/${space.id}`}>Edit space and rooms</Link><SpacePremium space={space}/></div></article>)}</div>
       <Pagination page={data} previous={page.previous} onPrevious={page.back} onNext={() => page.next(data.nextLink)}/>
     </>}
     <Bookings managed/>
@@ -50,7 +51,7 @@ function ExistingSpace({ id, refresh, changed }: { id: string; refresh: number; 
   const { data, error } = useResource<Space>(`/api/management/spaces/${encodeURIComponent(id)}`, refresh);
   if (error) return <Failure error={error} retry={changed}/>;
   if (!data) return <Loading/>;
-  return <><SpaceForm key={refresh} space={data} changed={changed}/><RoomEditor space={data} changed={changed}/></>;
+  return <><SpaceForm key={refresh} space={data} changed={changed}/><SpacePremium space={data}/><RoomEditor space={data} changed={changed}/></>;
 }
 
 function SpaceForm({ space, changed }: { space?: Space; changed?: () => void }) {
@@ -101,7 +102,7 @@ export function Administration() {
   const page = usePage('/api/users?skip=0&limit=10'); const [refresh, setRefresh] = useState(0); const [failure, setFailure] = useState<Error>(); const [pending, setPending] = useState(false);
   const { data, error } = useResource<OffsetPage<User>>(page.path, refresh);
   return <><h1>Platform administration</h1><p>Manage user roles and assign legacy spaces after independently verifying ownership.</p><p><Link to="/owner">Manage all spaces and bookings</Link> · <Link to="/analytics">Platform analytics</Link></p>
-    {failure && <Failure error={failure}/>}{message && <p role="status">{message}</p>}
+    <PremiumAdministration/>{failure && <Failure error={failure}/>}{message && <p role="status">{message}</p>}
     {error ? <Failure error={error} retry={() => setRefresh(v => v + 1)}/> : !data ? <Loading/> : <><h2 className="h3">Users · {data.total}</h2>
       {data.items.map(user => <form key={user.id} className="card card-body mb-3" onSubmit={async event => {
         event.preventDefault(); const fields = new FormData(event.currentTarget); setPending(true); setFailure(undefined);
