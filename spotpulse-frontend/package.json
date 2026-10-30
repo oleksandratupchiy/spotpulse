@@ -8,7 +8,13 @@
     "build": "tsc --noEmit && vite build",
     "build:deployment": "tsc --noEmit && vite build --base=/app/",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e:prepare": "python ../spotpulse-backend/tools/prepare_e2e.py",
+    "e2e:typecheck": "tsc --noEmit -p tsconfig.e2e.json",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report"
   },
   "dependencies": {
     "bootstrap": "^5.3.8",
@@ -20,10 +26,12 @@
     "react-router-dom": "^7.9.4"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/leaflet": "^1.9.21",
+    "@types/node": "26.6.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",

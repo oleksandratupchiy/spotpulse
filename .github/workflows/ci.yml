@@ -103,7 +103,7 @@ jobs:
 
   container:
     name: Production Docker image
-    needs: [backend, frontend, utilities]
+    needs: [backend, frontend, utilities, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -116,3 +116,44 @@ jobs:
         run: |
           docker run --rm --entrypoint java spotpulse:ci --version
           test "$(docker image inspect --format '{{.Config.User}}' spotpulse:ci)" = '10001:10001'
+
+  e2e:
+    name: Playwright E2E (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: spotpulse-frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: spotpulse-backend/pom.xml
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: spotpulse-frontend/package-lock.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: chmod +x ../spotpulse-backend/mvnw
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:typecheck
+      - run: npm run e2e:prepare
+      - run: npm run e2e
+      # Traces/HTML can contain synthetic session cookies. Upload screenshots only, never storageState or traces.
+      - name: Failure screenshots only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-screenshots
+          path: spotpulse-frontend/test-results/**/*-failed-*.png
+          if-no-files-found: ignore
+          retention-days: 7
