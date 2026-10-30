@@ -139,3 +139,21 @@ test('public images reserve layout, fall back on error and recover when the URL 
   view.rerender(<SpaceImage url="javascript:alert(1)" name="Hub"/>);
   expect(screen.queryByRole('img')).not.toBeInTheDocument();
 });
+
+test('a selected file keeps the saved image URL intact when attachment fails, even if URL text was edited', async () => {
+  const oldUrl = 'https://res.cloudinary.com/demo/image/upload/v1/spotpulse/spaces/old.png';
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+    if (String(url).endsWith('/csrf')) return new Response(JSON.stringify({ token: 'csrf', headerName: 'X-CSRF-TOKEN' }));
+    if (String(url).endsWith('/image')) return new Response('{}', { status: 502 });
+    return new Response(JSON.stringify({ id: 42, imageUrl: oldUrl }));
+  });
+  render(<MemoryRouter><SpaceForm space={{ id: 42, name: 'Hub', city: 'Kyiv', address: 'Street', description: null, contactEmail: null, imageUrl: oldUrl, rooms: [] }}/></MemoryRouter>);
+  fireEvent.change(screen.getByLabelText('Image URL'), { target: { value: 'https://example.test/new.jpg' } });
+  choose(file()); await screen.findByRole('img', { name: /preview/ });
+  await userEvent.click(screen.getByRole('button', { name: 'Save space' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('image was not attached');
+  const [, saved] = fetch.mock.calls.find(([url]) => url === '/api/spaces/42')!;
+  expect(JSON.parse(String(saved?.body)).imageUrl).toBe(oldUrl);
+  expect(screen.getByRole('img', { name: 'Hub' })).toHaveAttribute('src', oldUrl);
+  expect(screen.getByRole('img', { name: /preview/ })).toBeVisible();
+});

@@ -20,6 +20,10 @@ public class TestDatabaseIsolation implements EnvironmentPostProcessor, Ordered 
         // All automated tests are offline, even if the launching shell has a real bot credential.
         environment.getPropertySources().addFirst(new MapPropertySource("offlineTelegramTests",
                 Map.of("spotpulse.telegram.enabled", "false")));
+        // Ordinary tests never select a real cloud provider, even if the launching shell does.
+        // Dedicated Cloudinary tests use an explicit mocked operations bean and test-only dynamic properties.
+        environment.getPropertySources().addFirst(new MapPropertySource("offlineImageProviderTests",
+                Map.of("spotpulse.images.storage-provider", "local")));
         // No automated context may write to the developer's image directory.
         environment.getPropertySources().addFirst(new MapPropertySource("isolatedImageStorage",
                 Map.of("spotpulse.images.directory", Path.of(System.getProperty("java.io.tmpdir"),

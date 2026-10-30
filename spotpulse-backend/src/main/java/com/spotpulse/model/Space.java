@@ -41,6 +41,14 @@ public class Space {
     /** URL-посилання на зображення простору (вимога C1) */
     private String imageUrl;
 
+    // Additive, nullable server-owned metadata. Legacy/external URLs need no migration.
+    @Column(length = 20)
+    private String imageStorageProvider;
+    @Column(length = 200)
+    private String imageStorageKey;
+    @Column(length = 128)
+    private String imageAssetId;
+
     @Column(length = 254)
     private String contactEmail;
 

@@ -63,6 +63,12 @@ public final class EntityMapper {
         space.setDescription(dto.getDescription());
         space.setAddress(dto.getAddress());
         space.setCity(dto.getCity());
+        if (!java.util.Objects.equals(space.getImageUrl(), dto.getImageUrl())) {
+            // Browser-entered URLs never acquire server-owned provider identity or deletion authority.
+            space.setImageStorageProvider(null);
+            space.setImageStorageKey(null);
+            space.setImageAssetId(null);
+        }
         space.setImageUrl(dto.getImageUrl());
         space.setContactEmail(dto.getContactEmail());
     }

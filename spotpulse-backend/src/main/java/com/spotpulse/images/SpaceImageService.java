@@ -35,9 +35,13 @@ public class SpaceImageService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override public void afterCompletion(int status) {
                 if (status == STATUS_ROLLED_BACK) storage.discard(created);
+                else storage.committed(created);
             }
         });
         space.setImageUrl(created.reference());
+        space.setImageStorageProvider(created.provider());
+        space.setImageStorageKey(created.key());
+        space.setImageAssetId(created.assetId());
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.SPACES));
         // Previous image objects are deliberately retained: another record/cache may still reference them.
         return EntityMapper.toDto(space);

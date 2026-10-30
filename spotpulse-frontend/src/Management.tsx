@@ -65,6 +65,8 @@ export function SpaceForm({ space, changed }: { space?: Space; changed?: () => v
     event.preventDefault(); const fields = new FormData(event.currentTarget);
     if (pending || validating) return;
     const body: Record<string, unknown> = Object.fromEntries(fields.entries());
+    // Attaching a selected file is a separate protected operation. Keep the current image until it succeeds.
+    if (image) body.imageUrl = space?.imageUrl || '';
     for (const key of ['latitude', 'longitude']) body[key] = fields.get(key) === '' ? null : Number(fields.get(key));
     setPending(true); setError(undefined);
     try {
@@ -80,7 +82,7 @@ export function SpaceForm({ space, changed }: { space?: Space; changed?: () => v
   }
   return <section className="card card-body p-4 mt-4"><h1 className="h3">{space ? 'Edit space' : 'Create coworking space'}</h1>
     {error && <Failure error={error}/>}
-    {attachmentPending && <p role="status">The image still needs to be attached to saved space #{savedId}.</p>}
+    {attachmentPending && <p role="status">{pending ? 'Uploading selected image…' : `The image still needs to be attached to saved space #${savedId}.`}</p>}
     {space && <SpaceImage key={space.imageUrl} url={space.imageUrl} name={space.name}/>}
     <form onSubmit={submit}><fieldset disabled={pending}><legend className="visually-hidden">Space details</legend><div className="row g-3">
       {(['name', 'city', 'address', 'imageUrl', 'contactEmail'] as const).map(field => <div className="col-md-6" key={field}><label htmlFor={`space-${field}`} className="form-label">{{ name: 'Space name', city: 'City', address: 'Address', imageUrl: 'Image URL', contactEmail: 'Public contact email' }[field]}</label><input id={`space-${field}`} name={field} className="form-control" maxLength={field === 'contactEmail' ? 254 : 255} type={field === 'contactEmail' ? 'email' : 'text'} required={['name', 'city', 'address'].includes(field)} defaultValue={space?.[field] || ''}/></div>)}

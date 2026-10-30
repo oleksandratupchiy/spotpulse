@@ -10,7 +10,8 @@ import java.time.Duration;
 @RestController @RequestMapping("/api/spaces") @RequiredArgsConstructor
 public class SpaceImageController {
     private final SpaceImageService images;
-    private final ImageStorage storage;
+    // Read legacy local keys regardless of the provider selected for new uploads.
+    private final LocalImageStorage localImages;
 
     @PostMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SpaceDto> upload(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
@@ -19,7 +20,7 @@ public class SpaceImageController {
 
     @GetMapping("/images/{key}")
     public ResponseEntity<byte[]> image(@PathVariable String key) {
-        var content = storage.read(key);
+        var content = localImages.read(key);
         return ResponseEntity.ok().contentType(MediaType.parseMediaType(content.mediaType()))
                 .header("X-Content-Type-Options", "nosniff")
                 .header("Content-Disposition", "inline")
