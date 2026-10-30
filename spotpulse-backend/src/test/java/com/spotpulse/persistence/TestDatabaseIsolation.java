@@ -14,7 +14,7 @@ import java.util.UUID;
 
 /** Test-classpath-only guard, before Hibernate can run create-drop or fixtures can delete rows. */
 public class TestDatabaseIsolation implements EnvironmentPostProcessor, Ordered {
-    @Override public int getOrder() { return ConfigDataEnvironmentPostProcessor.ORDER + 2; }
+    @Override public int getOrder() { return ConfigDataEnvironmentPostProcessor.ORDER + 3; }
 
     @Override public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         // All automated tests are offline, even if the launching shell has a real bot credential.

@@ -25,9 +25,13 @@ public class LocalImageStorage implements ImageStorage {
             if (ancestor == null) throw new IllegalStateException("Invalid image directory");
             directory = ancestor.toRealPath().resolve(ancestor.relativize(candidate)).normalize();
         } catch (IOException ignored) { throw new IllegalStateException("Cannot resolve image directory"); }
-        Path checkout = Path.of(environment.getProperty("user.dir", ".")).toAbsolutePath().normalize();
-        while (checkout.getParent() != null && !Files.exists(checkout.resolve(".git"))) checkout = checkout.getParent();
-        if (directory.startsWith(checkout)) throw new IllegalStateException("Image directory must be outside the checkout");
+        Path working = Path.of(environment.getProperty("user.dir", ".")).toAbsolutePath().normalize();
+        try { working = working.toRealPath(); }
+        catch (IOException ignored) { throw new IllegalStateException("Cannot resolve application directory"); }
+        Path checkout = working;
+        while (checkout != null && !Files.exists(checkout.resolve(".git"))) checkout = checkout.getParent();
+        // Runtime images intentionally contain no .git: protect the working directory, not the whole filesystem.
+        if (directory.startsWith(checkout == null ? working : checkout)) throw new IllegalStateException("Image directory must be outside the checkout");
         // Creation is lazy: constructing a context never touches the real image directory.
     }
 

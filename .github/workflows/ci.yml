@@ -1,0 +1,118 @@
+name: SpotPulse CI
+
+'on':
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests (Java 25)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: spotpulse_ci_test
+          POSTGRES_USER: spotpulse_ci
+          POSTGRES_PASSWORD: isolated-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U spotpulse_ci -d spotpulse_ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SPRING_PROFILES_ACTIVE: local
+      TELEGRAM_BOT_TOKEN: ''
+      SPOTPULSE_IMAGE_STORAGE: local
+      SPOTPULSE_BOOTSTRAP_ADMIN_ID: ''
+      # Only BackendStabilizationTests opts into this isolated runner-owned database.
+      SPOTPULSE_TEST_DATABASE_URL: jdbc:postgresql://localhost:5432/spotpulse_ci_test
+      SPOTPULSE_TEST_DATABASE_DRIVER: org.postgresql.Driver
+      SPOTPULSE_TEST_DATABASE_USER: spotpulse_ci
+      SPOTPULSE_TEST_DATABASE_PASSWORD: isolated-ci-only
+      SPOTPULSE_TEST_DATABASE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+    defaults:
+      run:
+        working-directory: spotpulse-backend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: |
+            spotpulse-backend/pom.xml
+            spotpulse-backend/.mvn/wrapper/maven-wrapper.properties
+      - name: Clean compilation, tests and package
+        run: chmod +x mvnw && ./mvnw -B -ntp clean verify
+
+  frontend:
+    name: React tests and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: spotpulse-frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: spotpulse-frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Full React suite
+        run: npm test
+      - name: TypeScript and same-origin SPA build
+        run: npm run build:deployment
+
+  utilities:
+    name: F2 JavaScript and C8 geocoding
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: F2 autocomplete behavior
+        run: node --test spotpulse-backend/src/test/js/space-autocomplete.test.cjs
+      - name: C8 offline geocoding
+        run: python -m unittest discover -s spotpulse-backend/tools -p 'test_*.py' -v
+
+  container:
+    name: Production Docker image
+    needs: [backend, frontend, utilities]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build the complete non-root image (no publish or deploy)
+        run: docker build --file Dockerfile --tag spotpulse:ci .
+      - name: Check runtime JVM and non-root user without starting the application
+        run: |
+          docker run --rm --entrypoint java spotpulse:ci --version
+          test "$(docker image inspect --format '{{.Config.User}}' spotpulse:ci)" = '10001:10001'

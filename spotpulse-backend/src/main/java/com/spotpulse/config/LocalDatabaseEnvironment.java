@@ -15,7 +15,7 @@ import java.util.Map;
 public class LocalDatabaseEnvironment implements EnvironmentPostProcessor, Ordered {
     public static final String GENERATED_URL = "spotpulse.local.generated-datasource-url";
 
-    @Override public int getOrder() { return ConfigDataEnvironmentPostProcessor.ORDER + 1; }
+    @Override public int getOrder() { return ConfigDataEnvironmentPostProcessor.ORDER + 2; }
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {

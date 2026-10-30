@@ -1,2 +1,3 @@
 org.springframework.boot.EnvironmentPostProcessor=\
+com.spotpulse.config.ProductionEnvironment,\
 com.spotpulse.config.LocalDatabaseEnvironment

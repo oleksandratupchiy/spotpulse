@@ -114,6 +114,20 @@
 		</dependency>
 	</dependencies>
 
+	<profiles>
+        <profile>
+            <id>spa</id>
+            <build>
+                <resources>
+                    <resource><directory>src/main/resources</directory></resource>
+                    <resource>
+                        <directory>${project.basedir}/../spotpulse-frontend/dist</directory>
+                        <targetPath>static/app</targetPath>
+                    </resource>
+                </resources>
+            </build>
+        </profile>
+    </profiles>
 	<build>
 		<plugins>
 			<plugin>

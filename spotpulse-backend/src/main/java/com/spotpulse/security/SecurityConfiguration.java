@@ -57,12 +57,16 @@ public class SecurityConfiguration {
     SecurityFilterChain security(HttpSecurity http, ObjectProvider<ClientRegistrationRepository> registrations,
                                  GoogleIdentityService identities, UserRepository users,
                                  @Value("${spotpulse.auth.frontend-origin}") String configuredOrigin,
+                                 @Value("${spotpulse.auth.ui-base-path:}") String uiBasePath,
                                  @Value("${server.servlet.session.cookie.secure:false}") boolean secureCookies) throws Exception {
         String origin = validateUrl(configuredOrigin, false);
         if (origin.startsWith("https://") && !secureCookies)
             throw new IllegalArgumentException("HTTPS authentication requires secure session cookies");
+        if (!uiBasePath.isEmpty() && !uiBasePath.equals("/app")) throw new IllegalArgumentException("Unsupported frontend base path");
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/h2-console/**").denyAll()
+                .requestMatchers(HttpMethod.GET, "/health", "/app", "/app/**").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/health", "/app", "/app/**").permitAll()
                 .requestMatchers("/api/auth/me", "/api/auth/csrf", "/oauth2/**", "/login/**", "/error").permitAll()
                 .requestMatchers("/api/users/**", "/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/analytics/**", "/api/management/**", "/spaces/new", "/spaces/*/edit").hasAnyRole("OWNER", "ADMIN")
@@ -90,11 +94,11 @@ public class SecurityConfiguration {
             var delegate = new OidcUserService();
             http.oauth2Login(oauth -> oauth.clientRegistrationRepository(registration)
                     .userInfoEndpoint(info -> info.oidcUserService(request -> identities.resolve(delegate.loadUser(request))))
-                    .successHandler((request, response, auth) -> response.sendRedirect(origin + "/spaces"))
+                    .successHandler((request, response, auth) -> response.sendRedirect(origin + uiBasePath + "/spaces"))
                     .failureHandler((request, response, failure) -> {
                         String code = failure instanceof org.springframework.security.oauth2.core.OAuth2AuthenticationException oauthFailure
                                 && "account_migration_required".equals(oauthFailure.getError().getErrorCode()) ? "account_migration_required" : "login_failed";
-                        response.sendRedirect(origin + "/login?error=" + code);
+                        response.sendRedirect(origin + uiBasePath + "/login?error=" + code);
                     }));
         }
         http.addFilterAfter(new FreshIdentityFilter(users), SecurityContextHolderFilter.class);
