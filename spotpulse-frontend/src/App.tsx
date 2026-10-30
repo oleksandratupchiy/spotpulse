@@ -6,6 +6,7 @@ import { request, type Booking, type OffsetPage, type Room, type Space } from '.
 import { AnalyticsBoundary, Failure, Loading, MapBoundary, NotFound, Pagination, SpaceImage, usePage, useResource } from './components';
 
 import { PremiumBadge } from './Premium';
+import { AvailabilityPanel } from './AvailabilityPanel';
 
 const Analytics = lazy(() => import('./Analytics'));
 const SpacesMap = lazy(() => import('./SpacesMap'));
@@ -57,7 +58,7 @@ function RoomDetails() {
   const { data: room, error } = useResource<Room>(`/api/rooms/${encodeURIComponent(id!)}`, refresh);
   if (error) return <Failure error={error} retry={() => setRefresh(r => r + 1)}/>;
   if (!room) return <Loading/>;
-  return <><Link className="back-link" to={`/spaces/${room.spaceId}`}>← {room.spaceName}</Link><div className="row g-5 mt-1"><section className="col-lg-5"><p className="eyebrow">MEETING ROOM</p><h1>{room.name}</h1><p className="text-secondary">{room.spaceName}</p><RoomFacts room={room}/><p>Availability is checked when you submit your booking. A room is reserved only after the server confirms it.</p><p className="small text-secondary">Rates are shown as supplied by the space. The API does not specify a currency.</p></section><section className="col-lg-7"><div className="card card-body p-4"><h2 className="h3">Book this room</h2><BookingForm key={room.id} room={room}/></div></section></div></>;
+  return <><Link className="back-link" to={`/spaces/${room.spaceId}`}>← {room.spaceName}</Link><div className="row g-5 mt-1"><section className="col-lg-5"><p className="eyebrow">MEETING ROOM</p><h1>{room.name}</h1><p className="text-secondary">{room.spaceName}</p><RoomFacts room={room}/><p>Availability is checked when you submit your booking. A room is reserved only after the server confirms it.</p><p className="small text-secondary">Rates are shown as supplied by the space. The API does not specify a currency.</p></section><section className="col-lg-7"><div className="card card-body p-4"><h2 className="h3">Book this room</h2><BookingForm key={room.id} room={room}/></div></section></div><AvailabilityPanel key={room.id} roomId={room.id}/></>;
 }
 
 function BookingForm({ room }: { room: Room }) {

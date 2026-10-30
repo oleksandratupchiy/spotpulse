@@ -13,6 +13,12 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
+    @Query("select new com.spotpulse.availability.AvailabilityService$Occupied(b.startTime, b.endTime) from Booking b "
+            + "where b.room.id = :roomId and b.status = com.spotpulse.model.enums.BookingStatus.CONFIRMED "
+            + "and b.startTime < :to and b.endTime > :from order by b.startTime, b.endTime")
+    java.util.List<com.spotpulse.availability.AvailabilityService.Occupied> occupied(
+            @Param("roomId") Long roomId, @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to, Pageable limit);
     boolean existsByIdAndUserId(Long id, Long userId);
     boolean existsByIdAndRoomSpaceOwnerId(Long id, Long ownerId);
     Page<Booking> findByRoomSpaceOwnerId(Long ownerId, Pageable pageable);

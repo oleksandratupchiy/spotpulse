@@ -10,6 +10,8 @@ The existing Google OAuth client must be a **Web application**. Its authorized
 redirect URI must exactly include:
 ```text
 http://localhost:8080/login/oauth2/code/google
+
+
 ```
 
 Only `openid`, `email`, `profile` scopes are requested. Configure the Google consent

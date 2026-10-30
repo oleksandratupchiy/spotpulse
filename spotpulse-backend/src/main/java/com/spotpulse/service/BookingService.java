@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import com.spotpulse.security.AccessPolicy;
 import com.spotpulse.cache.ReadDataChanged;
 import com.spotpulse.telegram.BookingNotification;
+import com.spotpulse.availability.AvailabilityChanged;
 import org.springframework.context.ApplicationEventPublisher;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
@@ -84,6 +85,7 @@ public class BookingService {
         Booking booking = EntityMapper.toEntity(dto, room, user);
         Booking saved = bookingRepository.save(booking);
         if (saved.getStatus() == BookingStatus.CONFIRMED) events.publishEvent(BookingNotification.of(saved));
+        if (saved.getStatus() == BookingStatus.CONFIRMED) events.publishEvent(new AvailabilityChanged(room.getId()));
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(saved);
     }
@@ -101,9 +103,13 @@ public class BookingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         BookingStatus previousStatus = booking.getStatus();
+        Long previousRoomId = booking.getRoom().getId();
         Long previousUserId = booking.getUser().getId();
         checkAvailability(dto, dto.getStatus() == null ? booking.getStatus() : dto.getStatus(), id);
         EntityMapper.updateEntity(booking, dto, room, user);
+        if (previousStatus == BookingStatus.CONFIRMED) events.publishEvent(new AvailabilityChanged(previousRoomId));
+        if (booking.getStatus() == BookingStatus.CONFIRMED && (!previousRoomId.equals(room.getId()) || previousStatus != BookingStatus.CONFIRMED))
+            events.publishEvent(new AvailabilityChanged(room.getId()));
         if (booking.getStatus() != previousStatus
                 || (booking.getStatus() == BookingStatus.CONFIRMED && !user.getId().equals(previousUserId)))
             events.publishEvent(BookingNotification.of(booking));
@@ -114,10 +120,11 @@ public class BookingService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public void delete(Long id) {
-        if (!bookingRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found");
-        }
-        bookingRepository.deleteById(id);
+        Booking booking = bookingRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        roomRepository.findByIdForUpdate(booking.getRoom().getId()).orElseThrow();
+        if (booking.getStatus() == BookingStatus.CONFIRMED) events.publishEvent(new AvailabilityChanged(booking.getRoom().getId()));
+        bookingRepository.delete(booking);
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
     }
 
@@ -151,6 +158,7 @@ public class BookingService {
         if (!booking.getStartTime().isAfter(LocalDateTime.now()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Started bookings cannot be cancelled");
         booking.setStatus(BookingStatus.CANCELLED);
+        events.publishEvent(new AvailabilityChanged(booking.getRoom().getId()));
         events.publishEvent(BookingNotification.of(booking));
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(bookingRepository.save(booking));
