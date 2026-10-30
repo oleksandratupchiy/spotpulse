@@ -13,6 +13,9 @@ import time
 def main():
     backend = Path(__file__).resolve().parents[1]
     port = int(os.environ.get('SPOTPULSE_E2E_PORT', '18089'))
+    suite = os.environ.get('SPOTPULSE_E2E_SUITE', 'qa2')
+    if suite not in {'qa1', 'qa2'}:
+        raise RuntimeError('Unknown isolated test suite')
     if not 1024 <= port <= 65535:
         raise RuntimeError('Invalid isolated port')
     with socket.socket() as probe:
@@ -32,7 +35,7 @@ def main():
     root = Path(tempfile.mkdtemp(prefix='spotpulse-e2e-')).resolve()
     if root.parent != Path(tempfile.gettempdir()).resolve():
         raise RuntimeError('Unsafe QA2 temporary directory')
-    output = backend / 'target/qa2'
+    output = backend / 'target' / suite
     output.mkdir(parents=True, exist_ok=True)
     stop_file, active_file = output / 'stop-requested', output / 'active'
     stop_file.unlink(missing_ok=True)
@@ -46,13 +49,13 @@ def main():
                                        cwd=backend, env=environment, stdout=log, stderr=subprocess.STDOUT,
                                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             active_file.write_text('Owned isolated QA2 runtime', encoding='utf-8')
-            print('QA2 isolated backend starting on loopback; runtime log: target/qa2/backend.log', flush=True)
+            print(f'Isolated backend starting on loopback; runtime log: target/{suite}/backend.log', flush=True)
             while process.poll() is None:
                 if stop_file.exists():
                     raise KeyboardInterrupt
                 time.sleep(.25)
             if process.returncode:
-                raise RuntimeError('QA2 backend exited; inspect target/qa2/backend.log')
+                raise RuntimeError(f'Isolated backend exited; inspect target/{suite}/backend.log')
     except KeyboardInterrupt:
         pass
     finally:

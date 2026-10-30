@@ -103,7 +103,7 @@ jobs:
 
   container:
     name: Production Docker image
-    needs: [backend, frontend, utilities, e2e]
+    needs: [backend, frontend, utilities, e2e, postman]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -155,5 +155,45 @@ jobs:
         with:
           name: playwright-failure-screenshots
           path: spotpulse-frontend/test-results/**/*-failed-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  postman:
+    name: Postman API (QA1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tools/postman
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: spotpulse-backend/pom.xml
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tools/postman/package-lock.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: npm ci --include=dev --ignore-scripts --no-audit --no-fund
+      - run: npm run test:safety
+      - run: npm run prepare:backend
+      - run: npm test
+      - name: Sanitized API evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa1-sanitized-evidence
+          path: |
+            spotpulse-backend/target/qa1/summary.json
+            spotpulse-backend/target/qa1/report.html
           if-no-files-found: ignore
           retention-days: 7

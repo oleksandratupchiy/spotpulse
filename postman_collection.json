@@ -2,35 +2,443 @@
   "info": {
     "name": "SpotPulse API Tests",
     "_postman_id": "spotpulse-api-tests-v1",
-    "description": "Автоматизоване тестування REST-контролерів SpotPulse (вимога QA1)",
+    "description": "QA1: isolated API verification only. Fixed target localhost:18091; never Render or persistent H2. Reuses test-classpath QA2 authentication with real sessions and CSRF. Run complete folders or the whole collection. See spotpulse-backend/docs/QA1-postman-verification.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080",
+      "value": "http://localhost:18091",
       "type": "string"
     }
   ],
   "item": [
     {
+      "name": "Public",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"Public\";",
+              "const first = \"Health\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"anonymous\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Minimal UP and no-store\", () => { pm.expect(pm.response.json()).to.eql({status:'UP'}); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public spaces first page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces?skip=0&limit=3"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });",
+                  "pm.test(\"Eight fixtures and next link\", () => { const j=pm.response.json(); pm.expect(j.total).to.eql(8); pm.expect(j.items).to.have.lengthOf(3); pm.expect(j.nextLink).to.match(/^\\/api\\/spaces\\?/); pm.collectionVariables.set('nextLink', j.nextLink); pm.collectionVariables.set('pageIds',JSON.stringify(j.items.map(s=>s.id))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Follow next page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}{{nextLink}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });",
+                  "pm.test(\"Page changes without duplicates\", () => { const j=pm.response.json(); pm.expect(j.skip).to.eql(3); pm.expect(j.items).to.have.lengthOf(3); j.items.forEach(s=>pm.expect(JSON.parse(pm.collectionVariables.get('pageIds'))).not.to.include(s.id)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search spaces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces?search=QA2%20Hub%2008&skip=0&limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Search selects the expected fixture\", () => { pm.expect(pm.response.json().total).to.eql(1); pm.expect(pm.response.json().items[0].name).to.eql('QA2 Hub 08'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by city",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces?city=Lviv&skip=0&limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"City filter\", () => { const j=pm.response.json(); pm.expect(j.total).to.eql(4); j.items.forEach(s=>pm.expect(s.city).to.eql('Lviv')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Legacy page interface",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces?page=0&size=3"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Legacy Spring page DTO\", () => { pm.expect(pm.response.json().content).to.have.lengthOf(3); pm.expect(pm.response.json().totalElements).to.eql(8); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms?skip=0&limit=3"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public space details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{fixtureSpaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Rooms included\", () => { pm.expect(pm.response.json().rooms).to.have.lengthOf(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public room details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureRoomId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Public room metadata\", () => { pm.expect(pm.response.json()).to.include.keys('id','name','capacity','hourlyRate','spaceId'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Available interval",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureRoomId}}/availability?from={{from}}&to={{to}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"No occupied intervals\", () => { pm.expect(pm.response.json().occupied).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Occupied interval is private-data safe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureOtherRoomId}}/availability?from={{from}}&to={{to}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Only non-sensitive intervals\", () => { const j=pm.response.json(); pm.expect(j.occupied).to.have.lengthOf(1); pm.expect(j).to.have.all.keys('roomId','from','to','occupied'); pm.expect(j.occupied[0]).to.have.all.keys('start','end'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid availability range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureRoomId}}/availability?from={{to}}&to={{from}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces?skip=-1&limit=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown public space",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/999999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Spaces",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"Spaces\";",
+              "const first = \"Create Space\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"owner\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
       "item": [
         {
           "name": "Create Space",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/spaces",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Creative Hub Kyiv\",\n  \"description\": \"Modern coworking with panoramic views\",\n  \"address\": \"вул. Хрещатик, 22\",\n  \"city\": \"Kyiv\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1497366216548-37526070297c?w=800\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces"]
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -39,24 +447,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 201 Created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has id, name, city, imageUrl', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('name', 'Creative Hub Kyiv');",
-                  "    pm.expect(json).to.have.property('city', 'Kyiv');",
-                  "    pm.expect(json).to.have.property('imageUrl');",
-                  "});",
-                  "",
-                  "// Save id for subsequent requests",
-                  "pm.collectionVariables.set('spaceId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('spaceId', pm.response.json().id);",
+                  "pm.test(\"Created space fields\", () => { pm.expect(pm.response.json()).to.include({name:'QA1 Created Hub',city:'Kyiv'}); });"
                 ]
               }
             }
@@ -66,15 +459,8 @@
           "name": "Get All Spaces (paginated)",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces?page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces"],
-              "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
-              ]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces?skip=0&limit=10"
           },
           "event": [
             {
@@ -82,29 +468,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response is a paginated result with content array', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('content');",
-                  "    pm.expect(json.content).to.be.an('array');",
-                  "    pm.expect(json).to.have.property('totalElements');",
-                  "    pm.expect(json).to.have.property('totalPages');",
-                  "});",
-                  "",
-                  "pm.test('First element has id and name', function () {",
-                  "    var content = pm.response.json().content;",
-                  "    if (content.length > 0) {",
-                  "        pm.expect(content[0]).to.have.property('id');",
-                  "        pm.expect(content[0]).to.have.property('name');",
-                  "    }",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });"
                 ]
               }
             }
@@ -114,11 +479,8 @@
           "name": "Get Space by ID",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces/{{spaceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces", "{{spaceId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{spaceId}}"
           },
           "event": [
             {
@@ -126,24 +488,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has correct structure', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('name');",
-                  "    pm.expect(json).to.have.property('description');",
-                  "    pm.expect(json).to.have.property('address');",
-                  "    pm.expect(json).to.have.property('city');",
-                  "    pm.expect(json).to.have.property('imageUrl');",
-                  "    pm.expect(json).to.have.property('rooms');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Created space identity and rooms\", () => { pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('spaceId'))); pm.expect(pm.response.json().rooms).to.be.an('array'); });"
                 ]
               }
             }
@@ -154,16 +500,20 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/spaces/{{spaceId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Creative Hub Kyiv (Updated)\",\n  \"description\": \"Updated description\",\n  \"address\": \"вул. Хрещатик, 22\",\n  \"city\": \"Kyiv\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1497366216548-37526070297c?w=800\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces/{{spaceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces", "{{spaceId}}"]
+              "raw": "{\"name\": \"QA1 Updated Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -172,18 +522,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Name was updated', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json.name).to.eql('Creative Hub Kyiv (Updated)');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Space update persisted\", () => { pm.expect(pm.response.json().name).to.eql('QA1 Updated Hub'); });"
                 ]
               }
             }
@@ -193,11 +533,8 @@
           "name": "Delete Space",
           "request": {
             "method": "DELETE",
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces/{{spaceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces", "{{spaceId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{spaceId}}"
           },
           "event": [
             {
@@ -205,9 +542,26 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204 No Content', function () {",
-                  "    pm.response.to.have.status(204);",
-                  "});"
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted space no longer readable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{spaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -217,22 +571,86 @@
     },
     {
       "name": "Users",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"Users\";",
+              "const first = \"Create User\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"admin\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
       "item": [
         {
           "name": "Create User",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Олександра\",\n  \"email\": \"oleksandra@example.com\",\n  \"role\": \"USER\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users"]
+              "raw": "{\"name\": \"QA1 Legacy record\", \"email\": \"legacy@qa1.example.test\", \"role\": \"USER\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -241,23 +659,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 201 Created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has id, name, email, role', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('name', 'Олександра');",
-                  "    pm.expect(json).to.have.property('email', 'oleksandra@example.com');",
-                  "    pm.expect(json).to.have.property('role', 'USER');",
-                  "});",
-                  "",
-                  "pm.collectionVariables.set('userId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('userId', pm.response.json().id);"
                 ]
               }
             }
@@ -267,15 +670,8 @@
           "name": "Get All Users (paginated)",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/users?page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users"],
-              "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
-              ]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/users?skip=0&limit=10"
           },
           "event": [
             {
@@ -283,20 +679,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response is paginated with content array', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('content');",
-                  "    pm.expect(json.content).to.be.an('array');",
-                  "    pm.expect(json).to.have.property('totalElements');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });"
                 ]
               }
             }
@@ -306,11 +690,8 @@
           "name": "Get User by ID",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users", "{{userId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}"
           },
           "event": [
             {
@@ -318,21 +699,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has id, name, email, role', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('name');",
-                  "    pm.expect(json).to.have.property('email');",
-                  "    pm.expect(json).to.have.property('role');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Only user DTO fields\", () => { pm.expect(pm.response.json()).to.have.all.keys('id','name','email','role'); });"
                 ]
               }
             }
@@ -343,16 +711,20 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Олександра (Updated)\",\n  \"email\": \"oleksandra@example.com\",\n  \"role\": \"OWNER\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users", "{{userId}}"]
+              "raw": "{\"name\": \"QA1 Updated record\", \"email\": \"legacy@qa1.example.test\", \"role\": \"OWNER\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -361,17 +733,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Role was updated to OWNER', function () {",
-                  "    pm.expect(pm.response.json().role).to.eql('OWNER');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"ADMIN changes role\", () => { pm.expect(pm.response.json().role).to.eql('OWNER'); });"
                 ]
               }
             }
@@ -381,11 +744,8 @@
           "name": "Delete User",
           "request": {
             "method": "DELETE",
-            "url": {
-              "raw": "{{baseUrl}}/api/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users", "{{userId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}"
           },
           "event": [
             {
@@ -393,9 +753,26 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204 No Content', function () {",
-                  "    pm.response.to.have.status(204);",
-                  "});"
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted user no longer readable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -405,22 +782,86 @@
     },
     {
       "name": "Rooms",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"Rooms\";",
+              "const first = \"Setup \\u2014 Create Space for Room\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"owner\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
       "item": [
         {
           "name": "Setup — Create Space for Room",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/spaces",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Test Space for Rooms\",\n  \"description\": \"Temporary space\",\n  \"address\": \"Test Address\",\n  \"city\": \"Kyiv\",\n  \"imageUrl\": \"\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces"]
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -429,10 +870,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Space created for Room tests', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "pm.collectionVariables.set('roomSpaceId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('roomSpaceId', pm.response.json().id);"
                 ]
               }
             }
@@ -443,16 +882,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/rooms",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Meeting Room Alpha\",\n  \"capacity\": 10,\n  \"hourlyRate\": 250.00,\n  \"spaceId\": {{roomSpaceId}}\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms"]
+              "raw": "{\"name\":\"QA1 Room\",\"capacity\":8,\"hourlyRate\":25,\"spaceId\":{{roomSpaceId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -461,24 +904,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 201 Created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has id, name, capacity, hourlyRate, spaceId', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('name', 'Meeting Room Alpha');",
-                  "    pm.expect(json).to.have.property('capacity', 10);",
-                  "    pm.expect(json).to.have.property('hourlyRate');",
-                  "    pm.expect(json).to.have.property('spaceId');",
-                  "});",
-                  "",
-                  "pm.collectionVariables.set('roomId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('roomId', pm.response.json().id);"
                 ]
               }
             }
@@ -488,15 +915,8 @@
           "name": "Get All Rooms (paginated)",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms?page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms"],
-              "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
-              ]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms?skip=0&limit=10"
           },
           "event": [
             {
@@ -504,19 +924,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response is paginated with content array', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('content');",
-                  "    pm.expect(json.content).to.be.an('array');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });"
                 ]
               }
             }
@@ -526,16 +935,8 @@
           "name": "Get Rooms by Space ID",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms?spaceId={{roomSpaceId}}&page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms"],
-              "query": [
-                { "key": "spaceId", "value": "{{roomSpaceId}}" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
-              ]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms?spaceId={{roomSpaceId}}&skip=0&limit=10"
           },
           "event": [
             {
@@ -543,17 +944,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('All rooms belong to the requested space', function () {",
-                  "    var content = pm.response.json().content;",
-                  "    var expectedSpaceId = parseInt(pm.collectionVariables.get('roomSpaceId'));",
-                  "    content.forEach(function(room) {",
-                  "        pm.expect(room.spaceId).to.eql(expectedSpaceId);",
-                  "    });",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });",
+                  "pm.test(\"Room belongs to created space\", () => { pm.expect(pm.response.json().items).to.have.lengthOf(1); pm.expect(pm.response.json().items[0].spaceId).to.eql(Number(pm.collectionVariables.get('roomSpaceId'))); });"
                 ]
               }
             }
@@ -563,11 +956,8 @@
           "name": "Get Room by ID",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms/{{roomId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms", "{{roomId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{roomId}}"
           },
           "event": [
             {
@@ -575,23 +965,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has correct structure', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('name');",
-                  "    pm.expect(json).to.have.property('capacity');",
-                  "    pm.expect(json).to.have.property('hourlyRate');",
-                  "    pm.expect(json).to.have.property('spaceId');",
-                  "    pm.expect(json).to.have.property('spaceName');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Created room metadata\", () => { pm.expect(pm.response.json()).to.include({name:'QA1 Room',capacity:8}); });"
                 ]
               }
             }
@@ -602,16 +977,20 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/rooms/{{roomId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Meeting Room Alpha (Updated)\",\n  \"capacity\": 15,\n  \"hourlyRate\": 300.00,\n  \"spaceId\": {{roomSpaceId}}\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms/{{roomId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms", "{{roomId}}"]
+              "raw": "{\"name\":\"QA1 Updated Room\",\"capacity\":8,\"hourlyRate\":25,\"spaceId\":{{roomSpaceId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -620,13 +999,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Capacity was updated', function () {",
-                  "    pm.expect(pm.response.json().capacity).to.eql(15);",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Room update\", () => { pm.expect(pm.response.json().name).to.eql('QA1 Updated Room'); });"
                 ]
               }
             }
@@ -636,11 +1010,8 @@
           "name": "Delete Room",
           "request": {
             "method": "DELETE",
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms/{{roomId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms", "{{roomId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{roomId}}"
           },
           "event": [
             {
@@ -648,9 +1019,45 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204 No Content', function () {",
-                  "    pm.response.to.have.status(204);",
-                  "});"
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted room no longer readable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{roomId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clean room space",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{roomSpaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
                 ]
               }
             }
@@ -660,22 +1067,86 @@
     },
     {
       "name": "Bookings",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"Bookings\";",
+              "const first = \"Setup \\u2014 Create Space for Booking\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"admin\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
       "item": [
         {
           "name": "Setup — Create Space for Booking",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/spaces",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Booking Test Space\",\n  \"description\": \"Space for booking tests\",\n  \"address\": \"Test St 1\",\n  \"city\": \"Lviv\",\n  \"imageUrl\": \"\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/spaces",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "spaces"]
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -684,10 +1155,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Setup space created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "pm.collectionVariables.set('bookingSpaceId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('roomSpaceId', pm.response.json().id);"
                 ]
               }
             }
@@ -698,16 +1167,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/rooms",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Booking Test Room\",\n  \"capacity\": 8,\n  \"hourlyRate\": 200.00,\n  \"spaceId\": {{bookingSpaceId}}\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/rooms",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "rooms"]
+              "raw": "{\"name\":\"QA1 Room\",\"capacity\":8,\"hourlyRate\":25,\"spaceId\":{{roomSpaceId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -716,10 +1189,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Setup room created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "pm.collectionVariables.set('bookingRoomId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bookingRoomId', pm.response.json().id);"
                 ]
               }
             }
@@ -730,16 +1201,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Booking User\",\n  \"email\": \"booking-user@example.com\",\n  \"role\": \"USER\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "users"]
+              "raw": "{\"name\": \"QA1 Booking record\", \"email\": \"booking@qa1.example.test\", \"role\": \"USER\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -748,10 +1223,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Setup user created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "pm.collectionVariables.set('bookingUserId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('userId', pm.response.json().id);"
                 ]
               }
             }
@@ -762,16 +1235,20 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/bookings",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"roomId\": {{bookingRoomId}},\n  \"userId\": {{bookingUserId}},\n  \"startTime\": \"2026-10-01T10:00:00\",\n  \"endTime\": \"2026-10-01T12:00:00\",\n  \"status\": \"CONFIRMED\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/bookings",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bookings"]
+              "raw": "{\"roomId\":{{bookingRoomId}},\"userId\":{{userId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -780,25 +1257,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 201 Created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has id, roomId, userId, startTime, endTime, status', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('roomId');",
-                  "    pm.expect(json).to.have.property('userId');",
-                  "    pm.expect(json).to.have.property('startTime');",
-                  "    pm.expect(json).to.have.property('endTime');",
-                  "    pm.expect(json).to.have.property('status', 'CONFIRMED');",
-                  "});",
-                  "",
-                  "pm.collectionVariables.set('bookingId', pm.response.json().id);"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bookingId', pm.response.json().id);",
+                  "pm.test(\"Booking DTO\", () => { pm.expect(pm.response.json()).to.include({status:'CONFIRMED',userId:Number(pm.collectionVariables.get('userId'))}); });"
                 ]
               }
             }
@@ -808,15 +1269,8 @@
           "name": "Get All Bookings (paginated)",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/bookings?page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bookings"],
-              "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
-              ]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings?skip=0&limit=10"
           },
           "event": [
             {
@@ -824,20 +1278,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response is paginated with content array', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('content');",
-                  "    pm.expect(json.content).to.be.an('array');",
-                  "    pm.expect(json).to.have.property('totalElements');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Offset page has current DTO fields\", () => { const j=pm.response.json(); pm.expect(j.items).to.be.an('array'); pm.expect(j.skip).to.be.a('number'); pm.expect(j.limit).to.be.a('number'); pm.expect(j.total).to.be.a('number'); pm.expect(j).to.have.property('nextLink'); });"
                 ]
               }
             }
@@ -847,11 +1289,8 @@
           "name": "Get Booking by ID",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bookings", "{{bookingId}}"]
-            }
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
           },
           "event": [
             {
@@ -859,25 +1298,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Content-Type is application/json', function () {",
-                  "    pm.response.to.have.header('Content-Type', /application\\/json/);",
-                  "});",
-                  "",
-                  "pm.test('Response has correct structure', function () {",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('id');",
-                  "    pm.expect(json).to.have.property('roomId');",
-                  "    pm.expect(json).to.have.property('roomName');",
-                  "    pm.expect(json).to.have.property('userId');",
-                  "    pm.expect(json).to.have.property('userName');",
-                  "    pm.expect(json).to.have.property('startTime');",
-                  "    pm.expect(json).to.have.property('endTime');",
-                  "    pm.expect(json).to.have.property('status');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Created booking identity\", () => { pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('bookingId'))); });"
                 ]
               }
             }
@@ -888,16 +1310,20 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"roomId\": {{bookingRoomId}},\n  \"userId\": {{bookingUserId}},\n  \"startTime\": \"2026-10-01T14:00:00\",\n  \"endTime\": \"2026-10-01T16:00:00\",\n  \"status\": \"CANCELLED\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bookings", "{{bookingId}}"]
+              "raw": "{\"roomId\":{{bookingRoomId}},\"userId\":{{userId}},\"startTime\":\"{{laterFrom}}\",\"endTime\":\"{{laterTo}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -906,13 +1332,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Status was updated to CANCELLED', function () {",
-                  "    pm.expect(pm.response.json().status).to.eql('CANCELLED');",
-                  "});"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"ADMIN moves booking interval\", () => { pm.expect(pm.response.json().startTime).to.include('12:00'); });"
                 ]
               }
             }
@@ -922,10 +1343,258 @@
           "name": "Delete Booking",
           "request": {
             "method": "DELETE",
-            "url": {
-              "raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bookings", "{{bookingId}}"]
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted booking no longer readable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clean booking room",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{bookingRoomId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clean booking space",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{roomSpaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clean booking user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Anonymous boundaries",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"Anonymous boundaries\";",
+              "const first = \"Anonymous session\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"anonymous\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Anonymous session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Anonymous session profile\", () => { pm.expect(pm.response.json().authenticated).to.eql(false); pm.expect(pm.response.json().user).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous bookings denied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous management denied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/management/spaces"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous administration denied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous booking mutation denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -934,15 +1603,1180 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204 No Content', function () {",
-                  "    pm.response.to.have.status(204);",
-                  "});"
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous space mutation denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/spaces",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing CSRF anonymous mutation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
                 ]
               }
             }
           ]
         }
       ]
+    },
+    {
+      "name": "USER boundaries and booking lifecycle",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"USER boundaries and booking lifecycle\";",
+              "const first = \"Authenticated USER session\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"user\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Authenticated USER session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Session uses USER role\", () => { pm.expect(pm.response.json().user.role).to.eql('USER'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER management denied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/management/spaces"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER administration denied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER cannot create a space",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/spaces",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER cannot change feature flags",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/features/PREMIUM_FEATURES_ENABLED",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing CSRF authenticated mutation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid CSRF authenticated mutation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER invalid booking input",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER inverted booking interval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{to}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER books available room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bookingId', pm.response.json().id);",
+                  "pm.test(\"Identity comes from authenticated session\", () => { pm.expect(pm.response.json().userId).to.eql(Number(pm.collectionVariables.get('actorId'))); pm.expect(pm.response.json().status).to.eql('CONFIRMED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conflicting overlapping booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Availability reflects committed booking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureRoomId}}/availability?from={{from}}&to={{to}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"One occupied interval after commit\", () => { pm.expect(pm.response.json().occupied).to.have.lengthOf(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Other owner cannot cancel booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER cannot use admin booking update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"roomId\":{{fixtureRoomId}},\"startTime\":\"{{from}}\",\"endTime\":\"{{to}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER cannot use admin booking delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER cancels own booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Booking cancelled\", () => { pm.expect(pm.response.json().status).to.eql('CANCELLED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelled booking releases availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureRoomId}}/availability?from={{from}}&to={{to}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"No occupied intervals\", () => { pm.expect(pm.response.json().occupied).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout invalidates session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.sendRequest('http://localhost:18091/api/auth/me', (error,response) => pm.test('Logout really invalidated the session', () => { pm.expect(error).to.eql(null); pm.expect(response.code).to.eql(200); pm.expect(response.json().authenticated).to.eql(false); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logged out session stays anonymous",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Logout persisted\", () => { pm.expect(pm.response.json().authenticated).to.eql(false); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OWNER ownership and validation",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"OWNER ownership and validation\";",
+              "const first = \"OWNER sees only own managed spaces\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"owner\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "OWNER sees only own managed spaces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/management/spaces?skip=0&limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Other owner excluded\", () => { const j=pm.response.json(); pm.expect(j.total).to.eql(7); pm.expect(j.items.map(s=>s.id)).not.to.include(Number(pm.collectionVariables.get('fixtureOtherSpaceId'))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER cannot read other management space",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/management/spaces/{{fixtureOtherSpaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER cannot update other space",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/spaces/{{fixtureOtherSpaceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER cannot delete other space",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/spaces/{{fixtureOtherSpaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER cannot update other room",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/rooms/{{fixtureOtherRoomId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"QA1 Room\",\"capacity\":8,\"hourlyRate\":25,\"spaceId\":{{roomSpaceId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER cannot administer users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER invalid space input",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/spaces",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"\", \"city\": \"\", \"address\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER invalid room capacity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/rooms",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"QA1 Room\",\"capacity\":0,\"hourlyRate\":25,\"spaceId\":{{roomSpaceId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OWNER cannot grant premium",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/spaces/{{fixtureSpaceId}}/premium",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"enabled\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ADMIN permissions and final cleanup",
+      "description": "Run this complete folder: independent fixture reset, session authentication and fresh CSRF precede its workflow.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = 'http://localhost:18091';",
+              "const folder = \"ADMIN permissions and final cleanup\";",
+              "const first = \"ADMIN sees all managed spaces\";",
+              "const actor = {\"Setup \\u2014 Create Space for Booking\": \"owner\", \"Setup \\u2014 Create Room for Booking\": \"owner\", \"Clean booking room\": \"owner\", \"Clean booking space\": \"owner\", \"Other owner cannot cancel booking\": \"other\", \"Logged out session stays anonymous\": \"anonymous\"}[pm.info.requestName] || \"admin\";",
+              "function stop(message) {",
+              "  pm.test('Fixture/authentication setup succeeded', () => { throw new Error(message); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "function send(path, method, token, done) {",
+              "  const header = token ? {[token.headerName]: token.token} : {};",
+              "  pm.sendRequest({url: origin + path, method, header}, (error, response) => {",
+              "    pm.test('Setup HTTP completed: ' + path.split('/').pop(), () => {",
+              "      pm.expect(error).to.eql(null); pm.expect(response.code).to.be.oneOf([200,204]);",
+              "    });",
+              "    if (error || ![200,204].includes(response.code)) return stop('Local fixture/authentication endpoint failed');",
+              "    done(response);",
+              "  });",
+              "}",
+              "function csrf(done) { send('/api/auth/csrf','GET',null,r => {",
+              "  const token = r.json();",
+              "  if (typeof token.token !== 'string' || typeof token.headerName !== 'string') return stop('Invalid session CSRF response');",
+              "  done(token);",
+              "}); }",
+              "function authenticate() { csrf(token => send(actor === 'anonymous' ? '/api/auth/logout' : '/__e2e/login/' + actor, 'POST', token, () => {",
+              "  csrf(fresh => {",
+              "    pm.request.headers.remove(fresh.headerName);",
+              "    if (!['GET','HEAD','OPTIONS'].includes(pm.request.method) && !pm.info.requestName.startsWith('Missing CSRF'))",
+              "      pm.request.headers.upsert({key:fresh.headerName,value:pm.info.requestName.startsWith('Invalid CSRF') ? 'invalid' : fresh.token});",
+              "    if (pm.variables.replaceIn(pm.request.url.toString()).includes('{{')) return stop('Run this complete folder from its first request');",
+              "    send('/api/auth/me','GET',null,r => {",
+              "      const session=r.json();",
+              "      pm.test('Setup session matches requested actor', () => {",
+              "        pm.expect(session.authenticated).to.eql(actor !== 'anonymous');",
+              "        if (actor !== 'anonymous') pm.expect(session.user.name).to.eql('QA2 ' + actor);",
+              "      });",
+              "      if (actor !== 'anonymous') pm.collectionVariables.set('actorId',session.user.id);",
+              "    });",
+              "  });",
+              "})); }",
+              "if (pm.info.requestName === first || pm.collectionVariables.get('qa1Folder') !== folder) {",
+              "  csrf(token => send('/__e2e/reset','POST',token,r => {",
+              "    const f=r.json();",
+              "    if (!Array.isArray(f.spaces) || f.spaces.length !== 8 || !Array.isArray(f.rooms)) return stop('Not the disposable harness');",
+              "    ['spaceId','roomSpaceId','roomId','bookingRoomId','bookingId','userId','nextLink','actorId'].forEach(k=>pm.collectionVariables.unset(k));",
+              "    Object.entries({fixtureSpaceId:f.spaces[0],fixtureOtherSpaceId:f.spaces[1],fixtureRoomId:f.rooms[0],fixtureOtherRoomId:f.rooms[1],from:f.from,to:f.to,laterFrom:f.from.slice(0,11)+'12:00',laterTo:f.from.slice(0,11)+'13:00'}).forEach(([k,v])=>pm.collectionVariables.set(k,v));",
+              "    pm.collectionVariables.set('roomSpaceId',f.spaces[0]);",
+              "    pm.collectionVariables.set('qa1Folder',folder); authenticate();",
+              "  }));",
+              "} else authenticate();"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "ADMIN sees all managed spaces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/management/spaces?skip=0&limit=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"All owners visible\", () => { pm.expect(pm.response.json().total).to.eql(8); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN manages other owner space",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/management/spaces/{{fixtureOtherSpaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN updates other owner space",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/spaces/{{fixtureOtherSpaceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"QA1 Created Hub\", \"address\": \"Isolated fixture street\", \"city\": \"Kyiv\", \"description\": \"Disposable QA1 data\", \"imageUrl\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN reads feature flags",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/features"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Feature flags are an array\", () => { pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN invalid user input",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"\", \"email\": \"not-an-email\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Final fixture reset",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/__e2e/reset"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Deterministic baseline restored\", () => { pm.expect(pm.response.json().spaces).to.have.lengthOf(8); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const origin = 'http://localhost:18091';",
+          "if (pm.variables.get('baseUrl') !== origin || !pm.variables.replaceIn(pm.request.url.toString()).startsWith(origin + '/')) {",
+          "  pm.test('Safety: isolated localhost target required', () => { throw new Error('Refusing non-QA1 target'); });",
+          "  pm.execution.skipRequest();",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is JSON or an empty 204', () => { if (pm.response.code === 204) pm.expect(pm.response.text()).to.eql(''); else pm.expect(pm.response.headers.get('Content-Type')).to.match(/application\\/(?:problem\\+)?json/); });"
+        ]
+      }
     }
   ]
 }

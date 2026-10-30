@@ -1,0 +1,11 @@
+{
+  "name": "spotpulse-qa1-postman",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare:backend": "python ../../spotpulse-backend/tools/prepare_api_tests.py",
+    "test:safety": "node --test postman-safety.test.cjs",
+    "test": "node verify-postman.cjs"
+  },
+  "devDependencies": { "newman": "6.2.3" }
+}
