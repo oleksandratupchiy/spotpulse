@@ -12,6 +12,7 @@ function mockApi(role: string | null, override?: (url: string, options?: Request
     const url = String(input); const custom = override?.(url, options); if (custom) return custom;
     if (url === '/api/auth/me') return new Response(JSON.stringify({ authenticated: !!role, user: role ? { id: 1, name: 'Signed member', email: 'member@example.test', role } : null, loginEnabled: true }));
     if (url === '/api/auth/csrf') return new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'masked-test-token' }));
+    if (url === '/api/account/telegram') return new Response(JSON.stringify({ configured: false, available: false, connected: false, expiresAt: null, bookingNotificationsEnabled: true }));
     if (url === '/api/auth/logout') return new Response(null, { status: 204 });
     if (url.endsWith('/cancel')) { cancelled = true; return new Response('{}'); }
     if (url.startsWith('/api/users')) return new Response(JSON.stringify(page([{ id: 42, name: 'Other member', email: 'other@example.test', role: 'USER' }])));
@@ -33,6 +34,7 @@ test('profile shows session identity and logout uses CSRF and clears authenticat
   const fetch = mockApi('USER'); open('/account');
   expect(await screen.findByText('member@example.test')).toBeVisible();
   expect(screen.getByText('Role: USER')).toBeVisible();
+  await screen.findByText('Telegram is not connected.');
   await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
   expect(await screen.findByRole('heading', { name: 'Sign in to continue' })).toBeVisible();
   expect(fetch).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST', credentials: 'same-origin', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'masked-test-token' }) }));

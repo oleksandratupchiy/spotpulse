@@ -17,6 +17,9 @@ public class TestDatabaseIsolation implements EnvironmentPostProcessor, Ordered 
     @Override public int getOrder() { return ConfigDataEnvironmentPostProcessor.ORDER + 2; }
 
     @Override public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+        // All automated tests are offline, even if the launching shell has a real bot credential.
+        environment.getPropertySources().addFirst(new MapPropertySource("offlineTelegramTests",
+                Map.of("spotpulse.telegram.enabled", "false")));
         String url = environment.getProperty("spring.datasource.url", "");
         String poolUrl = environment.getProperty("spring.datasource.hikari.jdbc-url");
         if (poolUrl != null && !poolUrl.equals(url)) throw new IllegalStateException("Tests refuse a separate Hikari JDBC URL override");

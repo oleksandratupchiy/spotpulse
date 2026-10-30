@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.spotpulse.security.AccessPolicy;
 import com.spotpulse.cache.ReadDataChanged;
+import com.spotpulse.telegram.BookingNotification;
 import org.springframework.context.ApplicationEventPublisher;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
@@ -82,6 +83,7 @@ public class BookingService {
         checkAvailability(dto, dto.getStatus() == null ? BookingStatus.CONFIRMED : dto.getStatus(), null);
         Booking booking = EntityMapper.toEntity(dto, room, user);
         Booking saved = bookingRepository.save(booking);
+        if (saved.getStatus() == BookingStatus.CONFIRMED) events.publishEvent(BookingNotification.of(saved));
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(saved);
     }
@@ -98,8 +100,13 @@ public class BookingService {
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        BookingStatus previousStatus = booking.getStatus();
+        Long previousUserId = booking.getUser().getId();
         checkAvailability(dto, dto.getStatus() == null ? booking.getStatus() : dto.getStatus(), id);
         EntityMapper.updateEntity(booking, dto, room, user);
+        if (booking.getStatus() != previousStatus
+                || (booking.getStatus() == BookingStatus.CONFIRMED && !user.getId().equals(previousUserId)))
+            events.publishEvent(BookingNotification.of(booking));
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(bookingRepository.save(booking));
     }
@@ -144,6 +151,7 @@ public class BookingService {
         if (!booking.getStartTime().isAfter(LocalDateTime.now()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Started bookings cannot be cancelled");
         booking.setStatus(BookingStatus.CANCELLED);
+        events.publishEvent(BookingNotification.of(booking));
         events.publishEvent(new ReadDataChanged(ReadDataChanged.Kind.BOOKINGS));
         return EntityMapper.toDto(bookingRepository.save(booking));
     }

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { Link, NavLink, useSearchParams } from 'react-router-dom';
 import { request, type User } from './api';
 import { Failure, Loading } from './components';
+import { TelegramAccount } from './Telegram';
 
 interface Session { authenticated: boolean; user: User | null; loginEnabled: boolean }
 interface AuthState { user: User | null; loading: boolean; loginEnabled: boolean; error?: Error; refresh: () => void; logout: () => Promise<void> }
@@ -58,5 +59,5 @@ export function Login() {
 
 export function Profile() {
   const { user } = useAuth();
-  return <section><h1>Your profile</h1><p>{user?.name}</p><p>{user?.email}</p><p>Role: {user?.role}</p><p>Account ID: {user?.id}</p><Link to="/bookings">My bookings</Link></section>;
+  return <section><h1>Your profile</h1><p>{user?.name}</p><p>{user?.email}</p><p>Role: {user?.role}</p><p>Account ID: {user?.id}</p><Link to="/bookings">My bookings</Link><TelegramAccount key={user?.id}/></section>;
 }
