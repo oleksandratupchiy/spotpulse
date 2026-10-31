@@ -30,7 +30,7 @@ export async function watch(page: Page, room: number, data: Fixture) {
   await page.goto(`/app/rooms/${room}`);
   await page.getByLabel('Availability from').fill(data.from);
   await page.getByLabel('Availability to').fill(data.to);
-  await page.getByRole('button', { name: 'Notify me when available' }).click();
+  await page.getByRole('button', { name: 'Check availability' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Available for your selected time' })).toBeVisible();
   await expect(page.getByLabel('Update mode')).toHaveCount(0);
 }

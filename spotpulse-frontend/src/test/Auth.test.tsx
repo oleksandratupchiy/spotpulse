@@ -14,6 +14,7 @@ function mockApi(role: string | null, override?: (url: string, options?: Request
     if (url === '/api/auth/me') return new Response(JSON.stringify({ authenticated: !!role, user: role ? { id: 1, name: 'Signed member', email: 'member@example.test', role } : null, loginEnabled: true }));
     if (url === '/api/auth/csrf') return new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'masked-test-token' }));
     if (url === '/api/account/telegram') return new Response(JSON.stringify({ configured: false, available: false, connected: false, expiresAt: null, bookingNotificationsEnabled: true }));
+    if (url.startsWith('/api/availability-alerts')) return new Response(JSON.stringify(page([])));
     if (url === '/api/auth/logout') return new Response(null, { status: 204 });
     if (url.endsWith('/cancel')) { cancelled = true; return new Response(JSON.stringify({ status: 'CANCELLED' })); }
     if (url.startsWith('/api/users')) return new Response(JSON.stringify(page([{ id: 42, name: 'Other member', email: 'other@example.test', role: 'USER' }])));

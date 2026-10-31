@@ -113,7 +113,7 @@ test('simple monitoring announces availability, restarts for new times and stops
   expect(screen.queryByLabelText('Polling interval')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Availability from'), { target: { value: from } });
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: to } });
-  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' })); await flush();
+  fireEvent.click(screen.getByRole('button', { name: 'Check availability' })); await flush();
   expect(screen.getByRole('status')).toHaveTextContent('currently booked');
   await flush(5000);
   expect(screen.getByRole('status')).toHaveTextContent('Available for your selected time');
@@ -128,7 +128,7 @@ test('simple monitoring announces availability, restarts for new times and stops
   const stopped = vi.mocked(fetch).mock.calls.length;
   await flush(60000); expect(fetch).toHaveBeenCalledTimes(stopped); expect(vi.getTimerCount()).toBe(0);
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' })); await flush();
+  fireEvent.click(screen.getByRole('button', { name: 'Check availability' })); await flush();
   view.unmount();
   const last = vi.mocked(fetch).mock.calls.length;
   await flush(60000); expect(fetch).toHaveBeenCalledTimes(last); expect(vi.getTimerCount()).toBe(0);
@@ -139,14 +139,14 @@ test('panel validates ranges and explains delayed updates without transport deta
   render(<AvailabilityPanel roomId={3}/>);
   fireEvent.change(screen.getByLabelText('Availability from'), { target: { value: to } });
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: from } });
-  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Check availability' }));
   expect(screen.getByRole('alert')).toHaveTextContent('end time after'); expect(fetch).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Availability from'), { target: { value: from } });
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: '2026-12-01T22:01' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Check availability' }));
   expect(screen.getByRole('alert')).toHaveTextContent('up to 12 hours'); expect(fetch).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: to } });
-  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' })); await flush();
+  fireEvent.click(screen.getByRole('button', { name: 'Check availability' })); await flush();
   expect(screen.getByRole('alert')).toHaveTextContent('try again automatically');
   expect(screen.queryByText(/HTTP|WebSocket/)).not.toBeInTheDocument();
   expect(vi.mocked(fetch).mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);

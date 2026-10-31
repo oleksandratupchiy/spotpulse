@@ -71,6 +71,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/users/**", "/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/analytics/**", "/api/management/**", "/spaces/new", "/spaces/*/edit").hasAnyRole("OWNER", "ADMIN")
                 .requestMatchers("/api/bookings/**").authenticated()
+                .requestMatchers("/api/availability-alerts", "/api/availability-alerts/**").authenticated()
                 .requestMatchers("/api/account/telegram", "/api/account/telegram/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/spaces", "/api/spaces/**", "/api/rooms", "/api/rooms/**",
                         "/spaces", "/spaces/*", "/robots.txt", "/sitemap.xml", "/sitemaps/**", "/css/**", "/js/**", "/images/**", "/favicon.ico", "/").permitAll()

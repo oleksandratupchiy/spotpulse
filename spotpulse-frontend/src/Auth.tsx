@@ -4,6 +4,7 @@ import { request, type User } from './api';
 import { ArrowUpRight, CalendarDays, LogOut, UserRound } from 'lucide-react';
 import { Failure, Loading, PageHeader } from './components';
 import { TelegramAccount } from './Telegram';
+import { MyAvailabilityAlerts } from './AvailabilityAlerts';
 
 interface Session { authenticated: boolean; user: User | null; loginEnabled: boolean }
 interface AuthState { user: User | null; loading: boolean; loginEnabled: boolean; error?: Error; refresh: () => void; logout: () => Promise<void> }
@@ -62,5 +63,6 @@ export function Profile() {
   const { user } = useAuth();
   return <><PageHeader eyebrow="YOUR CORNER" title="Your profile" description="A little about you. Everything for your next visit."/>
     <div className="account-layout"><section className="identity-card"><span className="profile-avatar" aria-hidden="true">{user?.name.slice(0, 1)}</span><p className="eyebrow">NICE TO SEE YOU</p><h2>{user?.name}</h2><p className="profile-email">{user?.email}</p><dl className="account-details"><div><dt>Membership</dt><dd>{user?.role === 'USER' ? 'Member' : user?.role === 'OWNER' ? 'Space owner' : 'Administrator'}</dd></div><div><dt>Account</dt><dd>#{user?.id}</dd></div></dl><p className="account-reference">Role: {user?.role}</p><Link className="sp-button sp-button--primary mt-4" to="/bookings"><CalendarDays aria-hidden="true"/> My bookings</Link></section><TelegramAccount key={user?.id}/></div>
+    <MyAvailabilityAlerts key={user?.id}/>
   </>;
 }

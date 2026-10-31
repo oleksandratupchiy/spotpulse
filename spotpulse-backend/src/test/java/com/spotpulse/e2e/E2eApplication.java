@@ -72,6 +72,16 @@ public final class E2eApplication {
     @RestController
     @Profile("e2e & !prod & !local")
     public static class FixtureController {
+        @org.springframework.beans.factory.annotation.Autowired com.spotpulse.availability.AvailabilityAlertStore alertStore;
+        @org.springframework.beans.factory.annotation.Autowired com.spotpulse.telegram.TelegramNotificationEligibility telegramEligibility;
+        @org.springframework.beans.factory.annotation.Autowired com.spotpulse.telegram.TelegramClient telegramClient;
+
+        @PostMapping("/__e2e/availability-alerts/process")
+        public void processAlerts() {
+            if (telegramClient.configured()) throw new IllegalStateException("E2E refuses live Telegram delivery");
+            var dispatcher = new com.spotpulse.availability.AvailabilityAlertDispatcher(alertStore, telegramEligibility, telegramClient);
+            try { dispatcher.process(); } finally { dispatcher.stop(); }
+        }
         private final UserRepository users;
         private final SpaceRepository spaces;
         private final RoomRepository rooms;

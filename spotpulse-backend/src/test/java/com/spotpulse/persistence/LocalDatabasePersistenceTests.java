@@ -28,7 +28,7 @@ class LocalDatabasePersistenceTests {
                 assertThat(Files.readString(log)).contains("PERSISTENCE_PHASE_OK " + phase);
                 assertThat(root.resolve("spotpulse.mv.db")).exists();
             }
-            System.out.println("PERSISTENCE_RESTART_OK: three separate JVMs, two restarts; identities, all roles, ownership, room, booking and one-time bootstrap retained.");
+            System.out.println("PERSISTENCE_RESTART_OK: three separate JVMs, two restarts; identities, all roles, ownership, room, booking, availability subscriptions, pending delivery/retry metadata and one-time bootstrap retained.");
         } finally {
             // Only the random directory created by this test may be recursively removed.
             if (!root.getParent().equals(Path.of(System.getProperty("java.io.tmpdir")).toRealPath())

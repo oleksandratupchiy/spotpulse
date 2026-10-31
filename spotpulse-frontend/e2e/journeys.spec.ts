@@ -161,7 +161,7 @@ test('committed booking and cancellation refresh availability without technical 
   expect((await mutate(request, `/api/bookings/${booking.id}/cancel`)).ok()).toBeTruthy();
   await expect(page.getByRole('status').filter({ hasText: 'Available for your selected time' })).toBeVisible();
   await page.getByRole('button', { name: 'Stop updates' }).click();
-  await expect(page.getByRole('button', { name: 'Notify me when available' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check availability' })).toBeVisible();
 });
 
 test('premium entitlement and master flag change visible behavior', async ({ page }) => {
@@ -182,7 +182,7 @@ test('known occupied fixture and invalid booking interval show useful feedback',
   await page.goto(`/app/rooms/${fixture.rooms[1]}`);
   await page.getByLabel('Availability from').fill(fixture.from);
   await page.getByLabel('Availability to').fill(fixture.to);
-  await page.getByRole('button', { name: 'Notify me when available' }).click();
+  await page.getByRole('button', { name: 'Check availability' }).click();
   await expect(page.getByRole('heading', { name: 'Booked times' })).toBeVisible();
   await page.getByLabel('Start time', { exact: true }).fill(fixture.to);
   await page.getByLabel('End time', { exact: true }).fill(fixture.from);

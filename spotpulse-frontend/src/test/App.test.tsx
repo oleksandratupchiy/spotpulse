@@ -14,7 +14,7 @@ function mockApi(override?: (url: string, options?: RequestInit) => { status?: n
     if (url === '/api/auth/me') return new Response(JSON.stringify({ authenticated: true, user: existingUser, loginEnabled: true }));
     if (url === '/api/auth/csrf') return new Response(JSON.stringify({ token: 'test-csrf', headerName: 'X-CSRF-TOKEN' }));
     const replacement = override?.(url, options);
-    const body = url.startsWith('/api/spaces?') ? page([space]) : url === '/api/spaces/3' ? space : url.startsWith('/api/rooms?') ? page([room]) : url === '/api/rooms/8' ? room : url.startsWith('/api/users?') ? page([existingUser]) : {};
+    const body = url.startsWith('/api/availability-alerts?') ? page([]) : url.startsWith('/api/spaces?') ? page([space]) : url === '/api/spaces/3' ? space : url.startsWith('/api/rooms?') ? page([room]) : url === '/api/rooms/8' ? room : url.startsWith('/api/users?') ? page([existingUser]) : {};
     return new Response(JSON.stringify(replacement?.body ?? body), { status: replacement?.status ?? 200, headers: { 'Content-Type': 'application/json' } });
   });
 }

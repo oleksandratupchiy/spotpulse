@@ -31,6 +31,7 @@ public class LocalDatabaseProcessProbe {
             require(expected.equals(context.getEnvironment().getProperty("spring.datasource.url")), "Local profile default URL was not used");
             var users = context.getBean(UserRepository.class); var spaces = context.getBean(SpaceRepository.class);
             var rooms = context.getBean(RoomRepository.class); var bookings = context.getBean(BookingRepository.class);
+            var alerts = context.getBean(com.spotpulse.availability.AvailabilityAlertRepository.class);
             var transaction = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
             transaction.executeWithoutResult(status -> {
                 if (phase.equals("write")) {
@@ -42,6 +43,12 @@ public class LocalDatabaseProcessProbe {
                     Room room = new Room(); room.setSpace(space); room.setName("Persistence test room"); room.setCapacity(4); room.setHourlyRate(BigDecimal.TEN); rooms.save(room);
                     Booking booking = new Booking(); booking.setUser(member); booking.setRoom(room);
                     booking.setStartTime(LocalDateTime.of(2030, 1, 1, 10, 0)); booking.setEndTime(LocalDateTime.of(2030, 1, 1, 11, 0)); bookings.saveAndFlush(booking);
+                    var alert = new com.spotpulse.availability.AvailabilityAlert(); alert.setUser(member); alert.setRoom(room);
+                    alert.setStartTime(booking.getStartTime()); alert.setEndTime(booking.getEndTime()); alerts.saveAndFlush(alert);
+                    var pending = new com.spotpulse.availability.AvailabilityAlert(); pending.setUser(member); pending.setRoom(room);
+                    pending.setStartTime(booking.getStartTime().plusMinutes(15)); pending.setEndTime(booking.getEndTime());
+                    pending.setStatus(com.spotpulse.availability.AvailabilityAlert.Status.READY);
+                    pending.setAttempts(2); pending.setDeliveryReason("bot_unavailable"); pending.setNextAttemptAt(Instant.parse("2030-01-01T09:00:00Z")); alerts.saveAndFlush(pending);
                     try { Files.writeString(root.resolve("candidate-id.txt"), candidate.getId().toString(), StandardOpenOption.CREATE_NEW); }
                     catch (java.io.IOException error) { throw new IllegalStateException(error); }
                 } else {
@@ -53,6 +60,11 @@ public class LocalDatabaseProcessProbe {
                     Space space = spaces.findAll().getFirst(); Room room = rooms.findAll().getFirst(); Booking booking = bookings.findAll().getFirst();
                     require(space.getOwner().getId().equals(owner.getId()) && room.getSpace().getId().equals(space.getId()), "Space ownership/room relationship changed");
                     require(booking.getUser().getId().equals(member.getId()) && booking.getRoom().getId().equals(room.getId()) && booking.getStatus() == BookingStatus.CONFIRMED, "Booking relationships/status changed");
+                    require(alerts.count() == 2, "Availability subscriptions were lost across restart");
+                    var restored = alerts.findAll();
+                    require(restored.stream().allMatch(a -> a.getUser().getId().equals(member.getId()) && a.getRoom().getId().equals(room.getId()) && a.getNotifiedAt() == null), "Subscription ownership or unsent state changed");
+                    require(restored.stream().anyMatch(a -> a.getStatus() == com.spotpulse.availability.AvailabilityAlert.Status.ACTIVE && a.getStartTime().equals(booking.getStartTime())), "Active subscription interval was lost");
+                    require(restored.stream().anyMatch(a -> a.getStatus() == com.spotpulse.availability.AvailabilityAlert.Status.READY && a.getAttempts() == 2 && "bot_unavailable".equals(a.getDeliveryReason()) && a.getNextAttemptAt().equals(Instant.parse("2030-01-01T09:00:00Z"))), "Pending notification/retry metadata was lost");
                     var identity = new DefaultOidcUser(List.of(new SimpleGrantedAuthority("OIDC_USER")), new OidcIdToken("test-only-identity", Instant.now(), Instant.now().plusSeconds(60),
                             Map.of("sub", "persistence-owner", "email", "owner@example.test", "email_verified", true, "name", "Changed display name")));
                     var resolved = context.getBean(GoogleIdentityService.class).resolve(identity);

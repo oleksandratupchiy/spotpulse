@@ -8,7 +8,7 @@ for (const actor of ['owner', 'admin'] as const) {
     await page.getByLabel('Update mode').selectOption('websocket');
     await page.getByLabel('Availability from').fill(fixture.from);
     await page.getByLabel('Availability to').fill(fixture.to);
-    await page.getByRole('button', { name: 'Notify me when available' }).click();
+    await page.getByRole('button', { name: 'Check availability' }).click();
     await expect(page.getByText('WebSocket connected', { exact: true })).toBeVisible();
     await expect(page.getByRole('status').filter({ hasText: 'Available for your selected time' })).toBeVisible();
     expect((await mutate(request, '/__e2e/login/user')).ok()).toBeTruthy();

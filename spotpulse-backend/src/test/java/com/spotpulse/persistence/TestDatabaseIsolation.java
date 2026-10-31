@@ -19,7 +19,7 @@ public class TestDatabaseIsolation implements EnvironmentPostProcessor, Ordered 
     @Override public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         // All automated tests are offline, even if the launching shell has a real bot credential.
         environment.getPropertySources().addFirst(new MapPropertySource("offlineTelegramTests",
-                Map.of("spotpulse.telegram.enabled", "false")));
+                Map.of("spotpulse.telegram.enabled", "false", "spotpulse.availability-alerts.dispatch-enabled", "false")));
         // Ordinary tests never select a real cloud provider, even if the launching shell does.
         // Dedicated Cloudinary tests use an explicit mocked operations bean and test-only dynamic properties.
         environment.getPropertySources().addFirst(new MapPropertySource("offlineImageProviderTests",
