@@ -41,11 +41,41 @@ class GeocodingTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 tool.candidates('Other street', 'https://provider.test', 'SpotPulse/contact', self.cache)
 
-    def test_rate_limit_and_changed_address(self):
-        with patch.object(tool, 'request_json', return_value=self.result), patch.object(tool.time, 'sleep') as sleep:
-            tool.candidates('First', 'https://provider.test', 'SpotPulse/contact', self.cache)
-            tool.candidates('Second', 'https://provider.test', 'SpotPulse/contact', self.cache)
-            self.assertGreater(sleep.call_args.args[0], 1)
+    def test_rate_limit_enforces_minimum_provider_request_interval(self):
+        for elapsed in (0.0, 0.25, 1.1, 2.0):
+            with self.subTest(elapsed=elapsed):
+                now = 1000.0
+                starts, finishes = [], []
+                cache = Path(self.temp.name) / f'rate-{elapsed}.db'
+
+                def advance(seconds):
+                    nonlocal now
+                    self.assertGreaterEqual(seconds, 0)
+                    now += seconds
+
+                def provider_request(*args, **kwargs):
+                    starts.append(now)
+                    advance(0.2)  # Simulate provider latency as well as time between calls.
+                    finishes.append(now)
+                    return self.result
+
+                with patch.object(tool.time, 'time', side_effect=lambda: now), \
+                        patch.object(tool.time, 'sleep', side_effect=advance) as sleep, \
+                        patch.object(tool, 'request_json', side_effect=provider_request) as request:
+                    tool.candidates('First', 'https://provider.test', 'SpotPulse/contact', cache)
+                    sleep.assert_not_called()
+                    advance(elapsed)
+                    tool.candidates('Second', 'https://provider.test', 'SpotPulse/contact', cache)
+                    self.assertEqual(request.call_count, 2)
+                    sleep.assert_called_once()
+                    # Elapsed time plus any remaining sleep must honor the full interval.
+                    self.assertAlmostEqual(starts[1] - finishes[0], max(1.1, elapsed))
+                    # Cached lookups neither contact the provider nor wait again.
+                    self.assertEqual(tool.candidates('Second', 'https://provider.test', 'SpotPulse/contact', cache), self.result)
+                    self.assertEqual(request.call_count, 2)
+                    sleep.assert_called_once()
+
+    def test_changed_address_does_not_save(self):
         with patch.object(tool, 'candidates', return_value=self.result), patch.object(tool, 'request_json', side_effect=[self.space, {**self.space, 'city': 'Lviv'}]) as request:
             with self.assertRaises(ValueError):
                 tool.geocode(1, 'http://localhost/api', '', '', self.cache, choose=lambda _: '1')
