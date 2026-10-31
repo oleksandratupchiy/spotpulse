@@ -133,7 +133,7 @@ test('public images reserve layout, fall back on error and recover when the URL 
   const view = render(<SpaceImage url="/api/spaces/images/first.png" name="Hub"/>);
   expect(screen.getByRole('img')).toHaveClass('space-image');
   fireEvent.error(screen.getByRole('img'));
-  expect(screen.getByText(/SpotPulse/)).toHaveClass('image-placeholder');
+  expect(screen.getByText('Photography coming soon')).toBeVisible();
   view.rerender(<SpaceImage url="/api/spaces/images/second.png" name="Hub"/>);
   expect(screen.getByRole('img')).toHaveAttribute('src', '/api/spaces/images/second.png');
   view.rerender(<SpaceImage url="javascript:alert(1)" name="Hub"/>);

@@ -39,6 +39,7 @@ test('analytics route renders the management disclosure and all three charts wit
   expect(chart('bar').datasets[0].data).toEqual([4, 2]);
   expect(chart('doughnut').datasets[0].data).toEqual([6, 2]);
   expect(screen.getByRole('status')).toHaveTextContent('8 scheduled bookings; 6 confirmed, 2 cancelled');
+  await userEvent.click(screen.getByText('About these insights'));
   expect(screen.getByText(/Each booking is counted once/)).toBeVisible();
   expect(fetch.mock.calls.every(([url]) => (String(url).startsWith('/api/analytics/bookings?') || String(url) === '/api/auth/me'))).toBe(true);
   await userEvent.click(screen.getByText('View daily counts as a table'));

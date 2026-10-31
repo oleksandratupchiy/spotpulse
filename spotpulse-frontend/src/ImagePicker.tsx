@@ -1,3 +1,4 @@
+import { ImagePlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { decodePreview, inspectImage, readImageHeader, MAX_IMAGE_BYTES, type ImageMetadata } from './images';
 
@@ -41,13 +42,13 @@ export function ImagePicker({ onChange, onValidating }: { onChange: (file: File 
       if (current === generation.current) { setBusy(false); callbacks.current.onValidating(false); }
     }
   }
-  return <div className="col-12">
-    <label htmlFor="space-image-file" className="form-label">Select coworking image</label>
+  return <div className="col-12"><div className="image-upload-panel">
+    <label htmlFor="space-image-file" className="form-label"><ImagePlus aria-hidden="true" size={18} className="me-2"/>Select coworking image</label>
     <input ref={input} id="space-image-file" type="file" accept="image/jpeg,image/png,image/webp" className="form-control" aria-describedby="image-file-help" aria-invalid={!!error} onChange={e => { void select(e.target.files?.[0]); e.target.value = ''; }}/>
     <p id="image-file-help" className="small">JPEG, PNG or WebP; up to 8 MiB, 8192 pixels per side and 12 megapixels. Selected images attach when you save the space. A local selection replaces the Image URL.</p>
     {busy && <p role="status">Inspecting image…</p>}
     {error && <p role="alert" className="text-danger">{error}</p>}
     {selection && <><img src={selection.url} alt="Selected coworking image preview" className="space-image"/><p role="status">{selection.file.name} · {selection.file.size.toLocaleString()} bytes · {selection.metadata.mime} · {selection.metadata.width} × {selection.metadata.height} pixels</p><p className="small">Preview only until Save space succeeds.</p></>}
-    {(selection || busy || error) && <button type="button" className="btn btn-outline-secondary" onClick={() => { void select(); input.current?.focus(); }}>Remove selection</button>}
-  </div>;
+    {(selection || busy || error) && <button type="button" className="sp-button sp-button--ghost" onClick={() => { void select(); input.current?.focus(); }}><X aria-hidden="true"/> Remove selection</button>}
+  </div></div>;
 }

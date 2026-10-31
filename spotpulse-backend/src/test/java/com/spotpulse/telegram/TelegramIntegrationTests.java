@@ -144,6 +144,17 @@ class TelegramIntegrationTests {
         mvc.perform(delete("/api/account/telegram").with(authentication(auth(member))).with(csrf())).andExpect(status().isNoContent());
     }
 
+    @Test void configuredButUnavailableBotBlocksLinkCreationWithoutNetwork() {
+        runtime.unavailable();
+        assertThat(links.status()).isEqualTo(new TelegramLinkService.Status(true, false, false, null, true));
+        assertThatThrownBy(() -> links.connect()).isInstanceOfSatisfying(
+                org.springframework.web.server.ResponseStatusException.class,
+                failure -> assertThat(failure.getStatusCode().value()).isEqualTo(503));
+        verify(client, never()).me(); verify(client, never()).updates(anyLong()); verify(client, never()).send(anyLong(), anyString());
+        runtime.ready(123L, "spotpulse_test_bot");
+        assertThat(links.status().available()).isTrue();
+    }
+
     @Test void unavailableIntegrationDoesNotRequireNetworkAndReportsNoSecrets() {
         when(client.configured()).thenReturn(false); runtime.unavailable();
         assertThat(links.status()).isEqualTo(new TelegramLinkService.Status(false, false, false, null, true));

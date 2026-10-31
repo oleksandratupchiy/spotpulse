@@ -106,34 +106,48 @@ test('reconnect uses bounded exponential backoff and refreshes missed changes', 
   expect(update.mock.lastCall![0].status).toContain('retry manually');
 });
 
-test('mode switches close sockets and remove old polling loops; unmount aborts requests', async () => {
+test('simple monitoring announces availability, restarts for new times and stops cleanly', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ ...snapshot, occupied: [{ start: from, end: to }] })));
   const view = render(<AvailabilityPanel roomId={3}/>);
+  expect(screen.queryByLabelText('Update mode')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Polling interval')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Availability from'), { target: { value: from } });
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: to } });
-  fireEvent.click(screen.getByRole('button', { name: 'Watch availability' })); await flush();
-  expect(screen.getByText(/No confirmed bookings overlap/)).toBeVisible();
-  fireEvent.change(screen.getByLabelText('Update mode'), { target: { value: 'websocket' } }); await flush();
-  expect(FakeSocket.instances).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' })); await flush();
+  expect(screen.getByRole('status')).toHaveTextContent('currently booked');
+  await flush(5000);
+  expect(screen.getByRole('status')).toHaveTextContent('Available for your selected time');
+  expect(screen.queryByText(/HTTP|WebSocket/)).not.toBeInTheDocument();
+  expect(FakeSocket.instances).toHaveLength(0);
+  fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: '2026-12-01T13:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Update times' })); await flush();
+  expect(String(vi.mocked(fetch).mock.lastCall![0])).toContain(encodeURIComponent('2026-12-01T13:00'));
   const calls = vi.mocked(fetch).mock.calls.length;
-  await flush(5000); expect(fetch).toHaveBeenCalledTimes(calls);
-  fireEvent.change(screen.getByLabelText('Update mode'), { target: { value: 'polling' } }); await flush();
-  expect(FakeSocket.instances[0].close).toHaveBeenCalledOnce();
-  const after = vi.mocked(fetch).mock.calls.length;
-  await flush(5000); expect(fetch).toHaveBeenCalledTimes(after + 1);
-  view.unmount(); const last = vi.mocked(fetch).mock.calls.length;
+  await flush(5000); expect(fetch).toHaveBeenCalledTimes(calls + 1);
+  fireEvent.click(screen.getByRole('button', { name: 'Stop updates' })); await flush();
+  const stopped = vi.mocked(fetch).mock.calls.length;
+  await flush(60000); expect(fetch).toHaveBeenCalledTimes(stopped); expect(vi.getTimerCount()).toBe(0);
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' })); await flush();
+  view.unmount();
+  const last = vi.mocked(fetch).mock.calls.length;
   await flush(60000); expect(fetch).toHaveBeenCalledTimes(last); expect(vi.getTimerCount()).toBe(0);
 });
 
-test('panel validates ranges and displays transport errors without making bookings', async () => {
+test('panel validates ranges and explains delayed updates without transport details or booking writes', async () => {
   vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 503 }));
   render(<AvailabilityPanel roomId={3}/>);
   fireEvent.change(screen.getByLabelText('Availability from'), { target: { value: to } });
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: from } });
-  fireEvent.click(screen.getByRole('button', { name: 'Watch availability' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('increasing interval'); expect(fetch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('end time after'); expect(fetch).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Availability from'), { target: { value: from } });
+  fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: '2026-12-01T22:01' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('up to 12 hours'); expect(fetch).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Availability to'), { target: { value: to } });
-  fireEvent.click(screen.getByRole('button', { name: 'Watch availability' })); await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('server error');
+  fireEvent.click(screen.getByRole('button', { name: 'Notify me when available' })); await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('try again automatically');
+  expect(screen.queryByText(/HTTP|WebSocket/)).not.toBeInTheDocument();
   expect(vi.mocked(fetch).mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });

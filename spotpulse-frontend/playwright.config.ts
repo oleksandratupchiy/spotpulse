@@ -14,7 +14,8 @@ export default defineConfig({
   projects: [{ name: 'chromium' }],
   webServer: {
     command: 'python ../spotpulse-backend/tools/run_e2e.py', url: `${origin}/health`,
-    timeout: 120_000, reuseExistingServer: false,
+    // Java 25/Spring startup can exceed two minutes on slower Windows workstations.
+    timeout: 240_000, reuseExistingServer: false,
     env: { SPOTPULSE_E2E_PORT: String(port) },
     gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
   },

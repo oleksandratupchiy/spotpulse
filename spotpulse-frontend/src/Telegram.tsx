@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Send, Bell } from 'lucide-react';
 import { request } from './api';
 import { Failure, Loading } from './components';
 
@@ -56,8 +57,8 @@ export function TelegramAccount() {
     } catch (error) { setError(error as Error); }
     finally { setPending(false); }
   }
-  return <section className="card card-body mt-4" aria-labelledby="telegram-heading">
-    <h2 id="telegram-heading" className="h4">Telegram</h2>
+  return <section className="card card-body telegram-panel" aria-labelledby="telegram-heading">
+    <div className="panel-icon" aria-hidden="true"><Send/></div><p className="eyebrow">STAY IN THE LOOP</p><h2 id="telegram-heading" className="h4">Telegram</h2>
     {error && <Failure error={error} retry={() => setRevision(value => value + 1)}/>}
     {!status && !error && <Loading/>}
     {status && <>
@@ -65,17 +66,17 @@ export function TelegramAccount() {
       <label className="form-check">
         <input className="form-check-input" type="checkbox" checked={status.bookingNotificationsEnabled}
           disabled={pending} onChange={event => void preferences(event.target.checked)}/>
-        <span className="form-check-label">Booking confirmation and cancellation notifications</span>
+        <span className="form-check-label"><Bell aria-hidden="true" size={16} className="me-2"/>Booking confirmation and cancellation notifications</span>
       </label>
       <p className="text-muted">{status.bookingNotificationsEnabled
         ? (status.connected ? 'Booking notifications are enabled.' : 'Booking notifications are enabled. Connect Telegram to receive them.')
         : 'Booking notifications are disabled.'}</p>
       {!status.configured ? <p>Telegram integration is unavailable on this server.</p>
         : !status.available ? <p>Telegram is starting or temporarily unavailable. Please try again shortly.</p> : null}
-      {!status.connected && <button className="btn btn-primary align-self-start" disabled={pending || !status.available} onClick={connect}>Connect Telegram</button>}
+      {!status.connected && <button className="sp-button sp-button--primary align-self-start" disabled={pending || !status.available} onClick={connect}><Send aria-hidden="true"/> Connect Telegram</button>}
       {link && <p className="mt-3"><a href={link.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open Telegram to finish connecting</a>. Press Start in the bot chat. This private connection link expires in five minutes; keep it to yourself.</p>}
       {status.expiresAt && !link && <p>A connection is pending. Finish in Telegram or create a new link.</p>}
-      {(status.connected || status.expiresAt || link) && <button className="btn btn-outline-danger align-self-start mt-3" disabled={pending} onClick={disconnect}>{status.connected ? 'Disconnect Telegram' : 'Cancel connection'}</button>}
+      {(status.connected || status.expiresAt || link) && <button className="sp-button sp-button--danger align-self-start mt-3" disabled={pending} onClick={disconnect}>{status.connected ? 'Disconnect Telegram' : 'Cancel connection'}</button>}
     </>}
   </section>;
 }

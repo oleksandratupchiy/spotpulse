@@ -61,7 +61,7 @@ export function MapCanvas({ spaces }: { spaces: MapData['items'] }) {
   }, [spaces, navigate, attempt]);
   return <>
     {loading && <Loading/>}
-    {error && <div role="alert" className="alert alert-warning">{error} <button className="btn btn-outline-primary" onClick={() => setAttempt(n => n + 1)}>Retry map</button></div>}
+    {error && <div role="alert" className="alert alert-warning">{error} <button className="sp-button sp-button--secondary" onClick={() => setAttempt(n => n + 1)}>Retry map</button></div>}
     <div ref={element} className="spaces-map" role="region" aria-label="Interactive coworking map. Use arrow keys to pan and plus or minus to zoom."/>
     <p className="small mt-2">Markers are numbered. Tab to a marker and press Enter to open its details. Zoom to separate nearby markers. <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">Report a map issue</a></p>
   </>;

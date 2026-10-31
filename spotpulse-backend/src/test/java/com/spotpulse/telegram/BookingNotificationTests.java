@@ -70,13 +70,15 @@ class BookingNotificationTests {
             verify(client, never()).send(anyLong(), anyString());
             return booking;
         });
-        verify(client).send(eq(987654321L + userId), contains("booking #" + saved.getId() + " confirmed"));
+        String timeRange = start.format(java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu, HH:mm", java.util.Locale.ENGLISH))
+                + " – " + start.plusHours(1).format(java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu, HH:mm", java.util.Locale.ENGLISH));
+        verify(client).send(eq(987654321L + userId), eq("Your booking for Room is confirmed.\nHub\n" + timeRange + "\nTimes as booked · Confirmed"));
         clearInvocations(client);
         tx.executeWithoutResult(status -> {
             bookings.cancel(saved.getId());
             verify(client, never()).send(anyLong(), anyString());
         });
-        verify(client).send(eq(987654321L + userId), contains("booking #" + saved.getId() + " cancelled"));
+        verify(client).send(eq(987654321L + userId), eq("Your booking for Room was cancelled.\nHub\n" + timeRange + "\nTimes as booked · Cancelled"));
         assertThat(bookingRepository.findById(saved.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.CANCELLED);
         bookings.cancel(saved.getId());
         verify(client, times(1)).send(anyLong(), anyString());

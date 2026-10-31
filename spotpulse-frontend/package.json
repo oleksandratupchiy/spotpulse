@@ -14,12 +14,18 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
-    "e2e:report": "playwright show-report"
+    "e2e:report": "playwright show-report",
+    "assets:sync": "node scripts/sync-ui-assets.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
     "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.11.3",
     "chart.js": "^4.6.1",
+    "jquery": "^3.7.1",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.66.0",
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",

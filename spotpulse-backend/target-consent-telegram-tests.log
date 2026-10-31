@@ -1,0 +1,189 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< com.spotpulse:spotpulse >-----------------------
+[INFO] Building  0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ spotpulse ---
+[INFO] Copying 3 resources from src\main\resources to target\classes
+[INFO] Copying 27 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ spotpulse ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ spotpulse ---
+[INFO] Copying 3 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ spotpulse ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 37 source files with javac [debug parameters release 25] to target\test-classes
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by lombok.permit.Permit
+WARNING: Please consider reporting this to the maintainers of class lombok.permit.Permit
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[INFO] /C:/Users/Alexandra T/IdeaProjects/spotpulse/spotpulse-backend/src/test/java/com/spotpulse/deployment/DeploymentHttpTests.java: Some input files use or override a deprecated API.
+[INFO] /C:/Users/Alexandra T/IdeaProjects/spotpulse/spotpulse-backend/src/test/java/com/spotpulse/deployment/DeploymentHttpTests.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ spotpulse ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.spotpulse.telegram.BookingNotificationTests
+19:44:02.304 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.spotpulse.telegram.BookingNotificationTests]: BookingNotificationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+19:44:05.403 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.spotpulse.SpotpulseApplication for test class com.spotpulse.telegram.BookingNotificationTests
+19:44:06.440 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.spotpulse.telegram.BookingNotificationTests]: BookingNotificationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+19:44:06.457 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.spotpulse.SpotpulseApplication for test class com.spotpulse.telegram.BookingNotificationTests
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.1)
+
+2026-10-31T19:44:10.857+02:00  INFO 14548 --- [spotpulse] [           main] c.s.telegram.BookingNotificationTests    : Starting BookingNotificationTests using Java 25 with PID 14548 (started by Alexandra T in C:\Users\Alexandra T\IdeaProjects\spotpulse\spotpulse-backend)
+2026-10-31T19:44:10.889+02:00  INFO 14548 --- [spotpulse] [           main] c.s.telegram.BookingNotificationTests    : No active profile set, falling back to 1 default profile: "local"
+2026-10-31T19:44:22.603+02:00  INFO 14548 --- [spotpulse] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-31T19:44:24.429+02:00  INFO 14548 --- [spotpulse] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 1600 ms. Found 9 JPA repository interfaces.
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\Alexandra T\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.11\byte-buddy-agent-1.18.11.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-10-31T19:44:47.634+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-31T19:44:49.307+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.4.5.Final
+2026-10-31T19:44:54.003+02:00  INFO 14548 --- [spotpulse] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-31T19:44:54.426+02:00  INFO 14548 --- [spotpulse] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-31T19:44:56.753+02:00  INFO 14548 --- [spotpulse] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:booking-notifications user=SA
+2026-10-31T19:44:56.765+02:00  INFO 14548 --- [spotpulse] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-31T19:44:57.234+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:h2:mem:booking-notifications]
+	Database driver: H2 JDBC Driver
+	Database dialect: H2Dialect
+	Database version: 2.4.240
+	Default catalog/schema: BOOKING-NOTIFICATIONS/PUBLIC
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 100
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-31T19:45:05.640+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-31T19:45:06.035+02:00  INFO 14548 --- [spotpulse] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-31T19:45:06.703+02:00  INFO 14548 --- [spotpulse] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-10-31T19:45:21.136+02:00  INFO 14548 --- [spotpulse] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name passwordAuthenticationDisabled
+2026-10-31T19:45:24.578+02:00  INFO 14548 --- [spotpulse] [           main] c.s.telegram.BookingNotificationTests    : Started BookingNotificationTests in 77.453 seconds (process running for 95.259)
+2026-10-31T19:45:26.882+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=78dff765-e8bb-4cc8-abbf-08bc92d95cb5 booking_id=1 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:26.970+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=78dff765-e8bb-4cc8-abbf-08bc92d95cb5 booking_id=1 event_type=CONFIRMED outcome=failed category=api_forbidden
+2026-10-31T19:45:27.489+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=27b457e3-8e3a-4e46-a5b5-25e2d11c630d booking_id=1 event_type=CANCELLED outcome=triggered category=none
+2026-10-31T19:45:27.497+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=27b457e3-8e3a-4e46-a5b5-25e2d11c630d booking_id=1 event_type=CANCELLED outcome=failed category=api_forbidden
+2026-10-31T19:45:27.778+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=441a0f9e-22e2-45b4-9f63-383a0622ea23 booking_id=2 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:27.796+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=441a0f9e-22e2-45b4-9f63-383a0622ea23 booking_id=2 event_type=CONFIRMED outcome=failed category=internal_error
+2026-10-31T19:45:27.936+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=d71bfaa0-ffb7-4fb0-a74e-2bb1ce1cbb7c booking_id=3 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:27.946+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=d71bfaa0-ffb7-4fb0-a74e-2bb1ce1cbb7c booking_id=3 event_type=CONFIRMED outcome=sent category=none
+2026-10-31T19:45:27.988+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=95fcab2d-57a1-47c1-99b2-3c079ad30b60 booking_id=3 event_type=CANCELLED outcome=triggered category=none
+2026-10-31T19:45:27.997+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=95fcab2d-57a1-47c1-99b2-3c079ad30b60 booking_id=3 event_type=CANCELLED outcome=sent category=none
+2026-10-31T19:45:28.168+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=cd009c46-e6f4-473c-87ad-72b5d2107321 booking_id=5 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:28.176+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=cd009c46-e6f4-473c-87ad-72b5d2107321 booking_id=5 event_type=CONFIRMED outcome=sent category=none
+2026-10-31T19:45:28.360+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=a30dcd57-cfdf-4ae9-90aa-2a179c85d829 booking_id=6 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:28.366+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=a30dcd57-cfdf-4ae9-90aa-2a179c85d829 booking_id=6 event_type=CONFIRMED outcome=skipped category=not_linked
+2026-10-31T19:45:28.404+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=71551221-8777-4f51-b1ed-44317a29ce0d booking_id=6 event_type=CANCELLED outcome=triggered category=none
+2026-10-31T19:45:28.410+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=71551221-8777-4f51-b1ed-44317a29ce0d booking_id=6 event_type=CANCELLED outcome=skipped category=bot_mismatch
+2026-10-31T19:45:28.557+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=2f2b9f42-8463-43bf-b766-76f6528f666b booking_id=7 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:28.565+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=2f2b9f42-8463-43bf-b766-76f6528f666b booking_id=7 event_type=CONFIRMED outcome=sent category=none
+2026-10-31T19:45:28.624+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=6ae3701e-c72d-4380-ad84-aa10035d6ea1 booking_id=7 event_type=CANCELLED outcome=triggered category=none
+2026-10-31T19:45:28.632+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=6ae3701e-c72d-4380-ad84-aa10035d6ea1 booking_id=7 event_type=CANCELLED outcome=sent category=none
+2026-10-31T19:45:28.746+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=64f41713-fc3c-4f64-bc99-dd0ca96bf7ed booking_id=8 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:28.751+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=64f41713-fc3c-4f64-bc99-dd0ca96bf7ed booking_id=8 event_type=CONFIRMED outcome=skipped category=preference_disabled
+2026-10-31T19:45:28.776+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=42daf84f-4056-4c0c-98bc-407474b1bd90 booking_id=8 event_type=CANCELLED outcome=triggered category=none
+2026-10-31T19:45:28.781+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=42daf84f-4056-4c0c-98bc-407474b1bd90 booking_id=8 event_type=CANCELLED outcome=skipped category=preference_disabled
+2026-10-31T19:45:28.821+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=7a498130-86a0-4b62-89f9-055e874b043f booking_id=9 event_type=CONFIRMED outcome=triggered category=none
+2026-10-31T19:45:28.829+02:00  INFO 14548 --- [spotpulse] [           main] c.s.t.BookingNotificationListener        : telegram_booking_notification event_id=7a498130-86a0-4b62-89f9-055e874b043f booking_id=9 event_type=CONFIRMED outcome=sent category=none
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 89.77 s -- in com.spotpulse.telegram.BookingNotificationTests
+[INFO] Running com.spotpulse.telegram.TelegramClientTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.743 s -- in com.spotpulse.telegram.TelegramClientTests
+[INFO] Running com.spotpulse.telegram.TelegramIntegrationTests
+2026-10-31T19:45:31.667+02:00  INFO 14548 --- [spotpulse] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.spotpulse.telegram.TelegramIntegrationTests]: TelegramIntegrationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-10-31T19:45:31.686+02:00  INFO 14548 --- [spotpulse] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.spotpulse.SpotpulseApplication for test class com.spotpulse.telegram.TelegramIntegrationTests
+2026-10-31T19:45:31.695+02:00  INFO 14548 --- [spotpulse] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.spotpulse.telegram.TelegramIntegrationTests]: TelegramIntegrationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-10-31T19:45:31.705+02:00  INFO 14548 --- [spotpulse] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.spotpulse.SpotpulseApplication for test class com.spotpulse.telegram.TelegramIntegrationTests
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.1)
+
+2026-10-31T19:45:32.397+02:00  INFO 14548 --- [spotpulse] [           main] c.s.telegram.TelegramIntegrationTests    : Starting TelegramIntegrationTests using Java 25 with PID 14548 (started by Alexandra T in C:\Users\Alexandra T\IdeaProjects\spotpulse\spotpulse-backend)
+2026-10-31T19:45:32.398+02:00  INFO 14548 --- [spotpulse] [           main] c.s.telegram.TelegramIntegrationTests    : No active profile set, falling back to 1 default profile: "local"
+2026-10-31T19:45:38.985+02:00  INFO 14548 --- [spotpulse] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-10-31T19:45:39.303+02:00  INFO 14548 --- [spotpulse] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 290 ms. Found 9 JPA repository interfaces.
+2026-10-31T19:45:40.035+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-10-31T19:45:40.203+02:00  INFO 14548 --- [spotpulse] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-10-31T19:45:40.209+02:00  INFO 14548 --- [spotpulse] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Starting...
+2026-10-31T19:45:40.217+02:00  INFO 14548 --- [spotpulse] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-2 - Added connection conn10: url=jdbc:h2:mem:telegram user=SA
+2026-10-31T19:45:40.218+02:00  INFO 14548 --- [spotpulse] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Start completed.
+2026-10-31T19:45:40.223+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:h2:mem:telegram]
+	Database driver: H2 JDBC Driver
+	Database dialect: H2Dialect
+	Database version: 2.4.240
+	Default catalog/schema: TELEGRAM/PUBLIC
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 100
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-10-31T19:45:40.848+02:00  INFO 14548 --- [spotpulse] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-10-31T19:45:40.911+02:00  INFO 14548 --- [spotpulse] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-10-31T19:45:43.255+02:00  INFO 14548 --- [spotpulse] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name passwordAuthenticationDisabled
+2026-10-31T19:45:44.668+02:00  INFO 14548 --- [spotpulse] [           main] c.s.telegram.TelegramIntegrationTests    : Started TelegramIntegrationTests in 12.916 seconds (process running for 115.349)
+2026-10-31T19:45:45.085+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:45.088+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:45.095+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 4 ms
+2026-10-31T19:45:47.535+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:47.539+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:47.543+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 4 ms
+2026-10-31T19:45:47.696+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:47.699+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:47.707+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 7 ms
+2026-10-31T19:45:47.887+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:47.887+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:47.892+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 4 ms
+2026-10-31T19:45:48.070+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:48.070+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:48.073+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 3 ms
+2026-10-31T19:45:48.523+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:48.524+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:48.533+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 8 ms
+2026-10-31T19:45:48.683+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:48.684+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:48.694+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 9 ms
+2026-10-31T19:45:48.805+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:48.806+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:48.811+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+2026-10-31T19:45:49.090+02:00  INFO 14548 --- [spotpulse] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-31T19:45:49.091+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-31T19:45:49.097+02:00  INFO 14548 --- [spotpulse] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 6 ms
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 17.52 s -- in com.spotpulse.telegram.TelegramIntegrationTests
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  03:33 min
+[INFO] Finished at: 2026-10-31T19:45:49+02:00
+[INFO] ------------------------------------------------------------------------

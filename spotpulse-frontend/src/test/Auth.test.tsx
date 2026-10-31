@@ -55,7 +55,7 @@ test('unauthenticated access to personal bookings asks for login', async () => {
 test('OWNER dashboard uses protected owned-space and booking endpoints', async () => {
   const fetch = mockApi('OWNER'); open('/owner');
   expect(await screen.findByRole('heading', { name: 'Managed Hub' })).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Create space' })).toHaveAttribute('href', '/owner/spaces/new');
+  expect(screen.getByRole('link', { name: 'Add space' })).toHaveAttribute('href', '/owner/spaces/new');
   expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
   expect(fetch).toHaveBeenCalledWith('/api/management/spaces?skip=0&limit=10', expect.anything());
   expect(fetch).toHaveBeenCalledWith('/api/management/bookings?skip=0&limit=10', expect.anything());
@@ -84,7 +84,7 @@ test('personal booking cancellation updates the list through authenticated CSRF 
   const analytics = vi.spyOn(usageAnalytics, 'bookingCancelled');
   const fetch = mockApi('USER'); open('/bookings');
   await userEvent.click(await screen.findByRole('button', { name: 'Cancel booking' }));
-  expect(await screen.findByText('Status: CANCELLED')).toBeVisible();
+  expect(await screen.findByText('Cancelled')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Cancel booking' })).toBeDisabled();
   expect(fetch).toHaveBeenCalledWith('/api/bookings/9/cancel', expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'masked-test-token' }) }));
   expect(analytics).toHaveBeenCalledExactlyOnceWith();
@@ -112,4 +112,25 @@ test('legacy email collision is explained without automatic linking or signup ro
   mockApi(null); open('/login?error=account_migration_required');
   expect(await screen.findByRole('alert')).toHaveTextContent('Automatic linking is disabled');
   expect(screen.queryByLabelText(/Role/)).not.toBeInTheDocument();
+});
+
+
+test('room creation and editing enforce the 15-person limit in the form', async () => {
+  const fetch = mockApi('OWNER'); open('/owner/spaces/3');
+  const capacity = await screen.findByLabelText('Capacity');
+  expect(capacity).toHaveAttribute('max', '15');
+  fireEvent.change(capacity, { target: { value: '16' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Save room' }));
+  expect(capacity).toBeInvalid();
+  expect(fetch.mock.calls.some(([url, options]) => url === '/api/rooms' && options?.method === 'POST')).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Edit room' }));
+  const editCapacity = screen.getByLabelText('Capacity');
+  expect(editCapacity).toHaveAttribute('max', '15');
+  fireEvent.change(editCapacity, { target: { value: '16' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Save room' }));
+  expect(editCapacity).toBeInvalid();
+  expect(fetch.mock.calls.some(([url, options]) => url === '/api/rooms/8' && options?.method === 'PUT')).toBe(false);
+  fireEvent.change(editCapacity, { target: { value: '15' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Save room' }));
+  expect(fetch).toHaveBeenCalledWith('/api/rooms/8', expect.objectContaining({ method: 'PUT', body: expect.stringContaining('"capacity":15') }));
 });

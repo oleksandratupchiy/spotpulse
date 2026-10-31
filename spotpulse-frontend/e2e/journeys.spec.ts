@@ -78,7 +78,7 @@ test('OWNER creates a space, validates inputs, adds and edits a room', async ({ 
   await login(page, 'owner');
   await page.goto('/app/owner');
   await expect(page.getByRole('heading', { name: 'QA2 Hub 02', exact: true })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Create space', exact: true }).click();
+  await page.getByRole('link', { name: 'Add space', exact: true }).click();
   await page.getByRole('button', { name: 'Save space', exact: true }).click();
   expect(await page.getByLabel('Space name').evaluate((element: HTMLInputElement) => element.validity.valueMissing)).toBe(true);
   await page.getByLabel('Space name').fill('QA2 Created Hub');
@@ -137,7 +137,7 @@ test('book, persist across navigation/reload, reject overlap and cancel own book
   await page.getByRole('link', { name: 'My bookings', exact: true }).first().click();
   await page.reload();
   const booking = page.getByRole('article').filter({ hasText: 'QA2 Room 1' });
-  await expect(booking).toContainText('CONFIRMED');
+  await expect(booking).toContainText('Confirmed');
   await page.goto(`/app/rooms/${fixture.rooms[0]}`);
   await page.getByLabel('Start time', { exact: true }).fill(fixture.from);
   await page.getByLabel('End time', { exact: true }).fill(fixture.to);
@@ -145,38 +145,24 @@ test('book, persist across navigation/reload, reject overlap and cancel own book
   await expect(page.getByRole('alert')).toContainText(/overlap|already|conflict|available/i);
   await page.goto('/app/bookings');
   await booking.getByRole('button', { name: 'Cancel booking', exact: true }).click();
-  await expect(booking).toContainText('CANCELLED');
+  await expect(booking).toContainText('Cancelled');
   await page.reload();
-  await expect(booking).toContainText('CANCELLED');
+  await expect(booking).toContainText('Cancelled');
 });
 
-for (const mode of ['websocket', 'polling'] as const) {
-  test(`${mode}: committed booking and cancellation refresh browser availability`, async ({ page, fixture, request }) => {
-    const changes: number[] = [];
-    page.on('websocket', socket => socket.on('framereceived', frame => {
-      const payload = String(frame.payload);
-      if (!payload.startsWith('{')) return;
-      const message = JSON.parse(payload);
-      if (message.type === 'availability.changed') changes.push(message.roomId);
-    }));
-    await watch(page, fixture.rooms[0], fixture, mode);
-    // Separate HTTP session acts as the booking writer while the browser remains a subscriber.
-    expect((await mutate(request, '/__e2e/login/user')).ok()).toBeTruthy();
-    const created = await mutate(request, '/api/bookings', { roomId: fixture.rooms[0], startTime: fixture.from, endTime: fixture.to });
-    expect(created.ok()).toBeTruthy();
-    const booking = await created.json();
-    await expect(page.getByRole('heading', { name: 'Occupied intervals' })).toBeVisible();
-    if (mode === 'websocket') {
-      await expect.poll(() => changes).toEqual([fixture.rooms[0]]);
-      await expect(page.getByText(/WebSocket messages: [1-9]/)).toBeVisible();
-    }
-    expect((await mutate(request, `/api/bookings/${booking.id}/cancel`)).ok()).toBeTruthy();
-    await expect(page.getByText('No confirmed bookings overlap this interval.')).toBeVisible();
-    if (mode === 'websocket') await expect.poll(() => changes).toEqual([fixture.rooms[0], fixture.rooms[0]]);
-    await page.getByLabel('Update mode').selectOption(mode === 'websocket' ? 'polling' : 'websocket');
-    await expect(page.getByText('No confirmed bookings overlap this interval.')).toBeVisible();
-  });
-}
+test('committed booking and cancellation refresh availability without technical controls', async ({ page, fixture, request }) => {
+  await watch(page, fixture.rooms[0], fixture);
+  // A separate session writes the booking while the browser watches for updates.
+  expect((await mutate(request, '/__e2e/login/user')).ok()).toBeTruthy();
+  const created = await mutate(request, '/api/bookings', { roomId: fixture.rooms[0], startTime: fixture.from, endTime: fixture.to });
+  expect(created.ok()).toBeTruthy();
+  const booking = await created.json();
+  await expect(page.getByRole('heading', { name: 'Booked times' })).toBeVisible();
+  expect((await mutate(request, `/api/bookings/${booking.id}/cancel`)).ok()).toBeTruthy();
+  await expect(page.getByRole('status').filter({ hasText: 'Available for your selected time' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop updates' }).click();
+  await expect(page.getByRole('button', { name: 'Notify me when available' })).toBeVisible();
+});
 
 test('premium entitlement and master flag change visible behavior', async ({ page }) => {
   await page.goto('/app/spaces');
@@ -196,8 +182,8 @@ test('known occupied fixture and invalid booking interval show useful feedback',
   await page.goto(`/app/rooms/${fixture.rooms[1]}`);
   await page.getByLabel('Availability from').fill(fixture.from);
   await page.getByLabel('Availability to').fill(fixture.to);
-  await page.getByRole('button', { name: 'Watch availability' }).click();
-  await expect(page.getByRole('heading', { name: 'Occupied intervals' })).toBeVisible();
+  await page.getByRole('button', { name: 'Notify me when available' }).click();
+  await expect(page.getByRole('heading', { name: 'Booked times' })).toBeVisible();
   await page.getByLabel('Start time', { exact: true }).fill(fixture.to);
   await page.getByLabel('End time', { exact: true }).fill(fixture.from);
   await page.getByRole('button', { name: 'Confirm booking', exact: true }).click();

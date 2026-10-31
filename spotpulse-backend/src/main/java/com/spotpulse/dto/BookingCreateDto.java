@@ -21,8 +21,14 @@ public class BookingCreateDto {
     @FutureOrPresent
     private LocalDateTime endTime;
     private BookingStatus status;
-    @AssertTrue(message = "startTime must be before endTime")
+    @AssertTrue(message = "End time must be after start time.")
     public boolean isTimeIntervalValid() {
         return startTime == null || endTime == null || startTime.isBefore(endTime);
+    }
+
+    @AssertTrue(message = "Bookings can last up to 12 hours.")
+    public boolean isDurationValid() {
+        return startTime == null || endTime == null
+                || java.time.Duration.between(startTime, endTime).compareTo(java.time.Duration.ofHours(12)) <= 0;
     }
 }

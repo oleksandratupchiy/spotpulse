@@ -10,6 +10,27 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class TelegramClientTests {
+    @Test void pollingConflictRemains409WhileTransportFailureIsStatusZero() {
+        var client = new TelegramClient("synthetic-credential", true);
+        var http = mock(HttpClient.class);
+        ReflectionTestUtils.setField(client, "http", http);
+        @SuppressWarnings("unchecked") HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(409);
+        when(response.body()).thenReturn("{\"ok\":false,\"error_code\":409,\"description\":\"synthetic conflict\"}");
+        when(http.sendAsync(any(HttpRequest.class), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any()))
+                .thenReturn(CompletableFuture.completedFuture(response));
+        assertThatThrownBy(() -> client.updates(0)).isInstanceOfSatisfying(TelegramClient.Failure.class, failure -> {
+            assertThat(failure.status).isEqualTo(409);
+            assertThat(failure).hasMessage("Telegram service unavailable").hasNoCause();
+        });
+        when(http.sendAsync(any(HttpRequest.class), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any()))
+                .thenReturn(CompletableFuture.failedFuture(new IOException("synthetic transport failure")));
+        assertThatThrownBy(() -> client.updates(0)).isInstanceOfSatisfying(TelegramClient.Failure.class, failure -> {
+            assertThat(failure.status).isZero();
+            assertThat(failure).hasMessage("Telegram service unavailable").hasNoCause();
+        });
+        client.stop();
+    }
     @Test void missingCredentialDisablesClientWithoutNetwork() {
         var client = new TelegramClient("", true);
         assertThat(client.configured()).isFalse();

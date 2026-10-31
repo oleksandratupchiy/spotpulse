@@ -1,0 +1,22 @@
+
+> spotpulse-frontend@1.0.0 build
+> tsc --noEmit && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2095 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                   0.43 kB │ gzip:   0.30 kB
+dist/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2          14.50 kB
+dist/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2         15.12 kB
+dist/assets/space-grotesk-latin-ext-wght-normal-D9tNdqV9.woff2   18.94 kB
+dist/assets/space-grotesk-latin-wght-normal-BhU9QXUp.woff2       22.29 kB
+dist/assets/manrope-latin-wght-normal-DHIcAJRg.woff2             24.84 kB
+dist/assets/SpacesMap-CIGW-MKW.css                               15.61 kB │ gzip:   6.46 kB
+dist/assets/index-B--Gc30y.css                                  264.56 kB │ gzip:  40.50 kB
+dist/assets/SpacesMap-Jmd41f4p.js                                 3.53 kB │ gzip:   1.77 kB
+dist/assets/leaflet-src-C7BMUxua.js                             149.90 kB │ gzip:  43.48 kB
+dist/assets/Analytics-DUZJ3Sy-.js                               186.01 kB │ gzip:  64.68 kB
+dist/assets/index-By2oatGA.js                                   337.35 kB │ gzip: 105.73 kB
+✓ built in 1m 7s

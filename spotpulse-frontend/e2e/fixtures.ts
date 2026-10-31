@@ -26,12 +26,11 @@ export const test = base.extend<{ fixture: Fixture }>({
 });
 export { expect };
 
-export async function watch(page: Page, room: number, data: Fixture, mode: 'websocket' | 'polling') {
+export async function watch(page: Page, room: number, data: Fixture) {
   await page.goto(`/app/rooms/${room}`);
-  await page.getByLabel('Update mode').selectOption(mode);
   await page.getByLabel('Availability from').fill(data.from);
   await page.getByLabel('Availability to').fill(data.to);
-  await page.getByRole('button', { name: 'Watch availability' }).click();
-  await expect(page.getByText('No confirmed bookings overlap this interval.')).toBeVisible();
-  if (mode === 'websocket') await expect(page.getByRole('status').filter({ hasText: 'WebSocket connected' })).toBeVisible();
+  await page.getByRole('button', { name: 'Notify me when available' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Available for your selected time' })).toBeVisible();
+  await expect(page.getByLabel('Update mode')).toHaveCount(0);
 }

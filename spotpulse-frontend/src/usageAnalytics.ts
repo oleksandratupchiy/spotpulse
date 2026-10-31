@@ -26,7 +26,7 @@ function storedChoice(): AnalyticsChoice {
   catch { return 'unset'; }
 }
 
-export function createUsageAnalytics(configuredId: unknown) {
+export function createUsageAnalytics(configuredId: unknown, enabled = true) {
   const id = measurementId(configuredId);
   const externallyDisabled = !!id && (window as unknown as Record<string, unknown>)['ga-disable-' + id] === true;
   let choice = storedChoice(), ready = false, attempted = false;
@@ -34,7 +34,7 @@ export function createUsageAnalytics(configuredId: unknown) {
   let pending: Command[] = [];
   const subscribers = new Set<() => void>();
   const disable = (value: boolean) => { if (id) (window as unknown as Record<string, unknown>)['ga-disable-' + id] = value; };
-  const allowed = () => !!id && choice === 'accepted' && !privateBrowser() && !externallyDisabled;
+  const allowed = () => enabled && !!id && choice === 'accepted' && !privateBrowser() && !externallyDisabled;
   const safePage = () => ({ page_location: window.location.origin + '/usage/' + label,
     page_path: '/usage/' + label, page_title: 'SpotPulse ' + label, page_referrer: '' });
   function command(...args: unknown[]) {
@@ -96,6 +96,10 @@ export function createUsageAnalytics(configuredId: unknown) {
     start(); send('event', name, { ...safePage(), ...extra });
   }
   return {
+    setEnabled(value: boolean) {
+      enabled = value;
+      if (!enabled) { disable(true); pending = []; pageSent = spaceSent = -1; }
+    },
     configured: !!id,
     blocked: () => externallyDisabled || privateBrowser(),
     getChoice: () => choice,
@@ -115,4 +119,5 @@ export function createUsageAnalytics(configuredId: unknown) {
   };
 }
 
-export const usageAnalytics = createUsageAnalytics(import.meta.env.VITE_GA_MEASUREMENT_ID);
+// Activate from the consent controller before page effects, respecting stored consent.
+export const usageAnalytics = createUsageAnalytics(import.meta.env.VITE_GA_MEASUREMENT_ID, false);

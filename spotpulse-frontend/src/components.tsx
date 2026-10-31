@@ -1,6 +1,14 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, apiUrl, request, type OffsetPage } from './api';
+import { ArrowLeft, ArrowRight, ArrowUpRight, CircleAlert, Building2, Sparkles } from 'lucide-react';
+
+export function PageHeader({ eyebrow, title, description, children }: { eyebrow: string; title: string; description?: string; children?: ReactNode }) {
+  return <header className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1>{description && <p className="page-description">{description}</p>}</div>{children && <div className="page-actions">{children}</div>}</header>;
+}
+export function EmptyState({ title, description }: { title: string; description: string }) {
+  return <section role="status" className="empty-state"><Sparkles aria-hidden="true"/><div><h3>{title}</h3><p>{description}</p></div></section>;
+}
 
 // A failed lazy map chunk must not take down discovery or booking navigation.
 export class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -35,12 +43,15 @@ export function useResource<T>(path: string, refresh = 0) {
   }, [path, refresh]);
   return state.path === path ? state : { path };
 }
-export function Loading() { return <p role="status"><span className="spinner-border spinner-border-sm me-2" aria-hidden="true"/>Loading…</p>; }
+export function Loading() { return <p role="status" className="loading-state"><span className="loading-orbit" aria-hidden="true"/>Loading…</p>; }
+export function BookingStatus({ status }: { status: string }) {
+  return <p>Status: <span className={`booking-status ${status === 'CONFIRMED' ? 'confirmed' : 'cancelled'}`}>{status === 'CONFIRMED' ? 'Confirmed' : status === 'CANCELLED' ? 'Cancelled' : status}</span></p>;
+}
 export function Failure({ error, retry }: { error: Error; retry?: () => void }) {
-  return <div role="alert" className="alert alert-danger"><p>{error instanceof ApiError && error.status === 404 ? 'Not found. This item may have been removed.' : error.message}</p>{error instanceof ApiError && error.errors.length > 0 && <ul>{error.errors.map((e, i) => <li key={i}>{e.field}: {e.message}</li>)}</ul>}{retry && <button type="button" className="btn btn-outline-danger" onClick={retry}>Try again</button>}</div>;
+  return <div role="alert" className="alert alert-danger failure-state"><CircleAlert aria-hidden="true" size={20}/><p>{error instanceof ApiError && error.status === 404 ? 'Not found. This item may have been removed.' : error.message}</p>{error instanceof ApiError && error.errors.length > 0 && <ul>{error.errors.map((e, i) => <li key={i}>{e.field}: {e.message}</li>)}</ul>}{retry && <button type="button" className="sp-button sp-button--ghost" onClick={retry}>Try again</button>}</div>;
 }
 export function Pagination<T>({ page, previous, onPrevious, onNext }: { page: OffsetPage<T>; previous: boolean; onPrevious: () => void; onNext: () => void }) {
-  return <nav className="d-flex align-items-center gap-3 my-4" aria-label="Pagination"><button type="button" className="btn btn-outline-primary" disabled={!previous} onClick={onPrevious}>Previous</button><span>{page.total === 0 ? '0 results' : `${page.skip + 1}–${page.skip + page.items.length} of ${page.total}`}</span><button type="button" className="btn btn-outline-primary" disabled={!page.nextLink} onClick={onNext}>Next</button></nav>;
+  return <nav className="pagination-bar" aria-label="Pagination"><button type="button" className="sp-button sp-button--ghost" disabled={!previous} onClick={onPrevious}><ArrowLeft aria-hidden="true"/> Previous</button><span>{page.total === 0 ? '0 results' : `${page.skip + 1}–${page.skip + page.items.length} of ${page.total}`}</span><button type="button" className="sp-button sp-button--ghost" disabled={!page.nextLink} onClick={onNext}>Next <ArrowRight aria-hidden="true"/></button></nav>;
 }
 export function usePage(initial: string) {
   const [history, setHistory] = useState([initial]);
@@ -52,6 +63,6 @@ export function usePage(initial: string) {
 export function SpaceImage({ url, name }: { url: string | null; name: string }) {
   const [failedUrl, setFailedUrl] = useState<string | null>();
   const safe = url && (/^https?:\/\//i.test(url) || (url.startsWith('/') && !url.startsWith('//')));
-  return safe && failedUrl !== url ? <img className="space-image" src={url.startsWith('/api/spaces/images/') ? apiUrl(url) : url} alt={name} onError={() => setFailedUrl(url)} loading="lazy"/> : <div className="image-placeholder">SpotPulse · Coworking space</div>;
+  return safe && failedUrl !== url ? <img className="space-image" src={url.startsWith('/api/spaces/images/') ? apiUrl(url) : url} alt={name} onError={() => setFailedUrl(url)} loading="lazy"/> : <div className="image-placeholder"><Building2 aria-hidden="true" strokeWidth={1}/><span>Space for possibility.</span><small>Photography coming soon</small></div>;
 }
-export function NotFound() { return <section><h1>Page not found</h1><p>Let’s find your next workspace.</p><Link to="/spaces" className="btn btn-primary">Explore spaces</Link></section>; }
+export function NotFound() { return <section className="auth-panel"><p className="eyebrow">A LITTLE DETOUR / 404</p><h1>Page not found</h1><p>Let’s find your next workspace.</p><Link to="/spaces" className="sp-button sp-button--primary">Explore spaces <ArrowUpRight aria-hidden="true"/></Link></section>; }

@@ -1,0 +1,54 @@
+
+> spotpulse-frontend@1.0.0 e2e:prepare
+> python ../spotpulse-backend/tools/prepare_e2e.py
+
+
+> spotpulse-frontend@1.0.0 build:deployment
+> tsc --noEmit && vite build --base=/app/
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2095 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                   0.43 kB │ gzip:   0.31 kB
+dist/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2          14.50 kB
+dist/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2         15.12 kB
+dist/assets/space-grotesk-latin-ext-wght-normal-D9tNdqV9.woff2   18.94 kB
+dist/assets/space-grotesk-latin-wght-normal-BhU9QXUp.woff2       22.29 kB
+dist/assets/manrope-latin-wght-normal-DHIcAJRg.woff2             24.84 kB
+dist/assets/SpacesMap-CIGW-MKW.css                               15.61 kB │ gzip:   6.46 kB
+dist/assets/index-BCIOWOeU.css                                  264.58 kB │ gzip:  40.51 kB
+dist/assets/SpacesMap-Wpucx3Tf.js                                 3.53 kB │ gzip:   1.78 kB
+dist/assets/leaflet-src-BZVa8LL4.js                             149.90 kB │ gzip:  43.48 kB
+dist/assets/Analytics-BQwhXl4q.js                               186.01 kB │ gzip:  64.68 kB
+dist/assets/index-C8ViDMlB.js                                   339.16 kB │ gzip: 106.52 kB
+✓ built in 17.90s
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< com.spotpulse:spotpulse >-----------------------
+[INFO] Building  0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ spotpulse ---
+[INFO] Copying 30 resources from src\main\resources to target\classes
+[INFO] Copying 12 resources from ..\spotpulse-frontend\dist to target\classes\static\app
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ spotpulse ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ spotpulse ---
+[INFO] Copying 3 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ spotpulse ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- dependency:3.10.0:build-classpath (default-cli) @ spotpulse ---
+[INFO] Skipped writing classpath file 'C:\Users\Alexandra T\IdeaProjects\spotpulse\spotpulse-backend\target\e2e-classpath.txt'.  No changes found.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  11.397 s
+[INFO] Finished at: 2026-10-31T19:46:39+02:00
+[INFO] ------------------------------------------------------------------------

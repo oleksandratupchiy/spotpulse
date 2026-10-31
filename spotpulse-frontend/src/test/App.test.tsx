@@ -77,8 +77,8 @@ test('navigates from space list to dynamic details and room', async () => {
   mockApi(); open();
   await userEvent.click(await screen.findByRole('link', { name: 'View space' }));
   expect(await screen.findByText(space.description)).toBeVisible();
-  expect(screen.getByRole('link', { name: space.contactEmail })).toHaveAttribute('href', 'mailto:' + space.contactEmail);
-  await userEvent.click(await screen.findByRole('link', { name: 'View room & book' }));
+  expect(screen.getByRole('link', { name: 'Contact the space' })).toHaveAttribute('href', 'mailto:' + space.contactEmail);
+  await userEvent.click(await screen.findByRole('link', { name: 'Book a room' }));
   expect(await screen.findByRole('heading', { name: 'Oak room' })).toBeVisible();
   expect(screen.getByText('6 people')).toBeVisible();
   expect(screen.getByText('150 / hour')).toBeVisible();
@@ -112,7 +112,7 @@ test('posts DTO fields and displays confirmed booking response', async () => {
   open('/rooms/8'); const user = await fillBooking();
   await user.click(screen.getByRole('button', { name: 'Confirm booking' }));
   expect(await screen.findByText('Booking #91 saved')).toBeVisible();
-  expect(screen.getByText('Status: CONFIRMED')).toBeVisible();
+  expect(screen.getByText('Confirmed')).toBeVisible();
   const post = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
   expect(JSON.parse(String(post[1]?.body))).toEqual({ roomId: 8, startTime: expect.stringContaining('T10:00'), endTime: expect.stringContaining('T11:00') });
   expect(screen.getByRole('button', { name: 'Booking confirmed' })).toBeDisabled();
@@ -149,4 +149,29 @@ test('books as the session identity without requesting a user directory or sendi
   const post = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
   expect(JSON.parse(String(post[1]?.body))).not.toHaveProperty('userId');
   expect(post[1]?.headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-csrf' });
+});
+
+
+test('rejects bookings over 12 calendar hours before sending a request', async () => {
+  const fetch = mockApi(); open('/rooms/8'); await fillBooking();
+  const { fireEvent } = await import('@testing-library/react');
+  const year = new Date().getFullYear() + 1;
+  fireEvent.change(screen.getByLabelText('Start time'), { target: { value: `${year}-11-01T20:00` } });
+  expect(screen.getByLabelText('End time')).toHaveAttribute('max', `${year}-11-02T08:00`);
+  fireEvent.change(screen.getByLabelText('End time'), { target: { value: `${year}-11-02T08:01` } });
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Bookings can last up to 12 hours.');
+  expect(fetch.mock.calls.some(([url, options]) => url === '/api/bookings' && options?.method === 'POST')).toBe(false);
+});
+
+test('accepts a 12-hour booking across midnight', async () => {
+  const fetch = mockApi((url, options) => url === '/api/bookings' ? { status: 201, body: { ...JSON.parse(String(options?.body)), id: 93, roomName: room.name, userName: 'Alex', status: 'CONFIRMED' } } : undefined);
+  open('/rooms/8'); await fillBooking();
+  const { fireEvent } = await import('@testing-library/react');
+  const year = new Date().getFullYear() + 1;
+  fireEvent.change(screen.getByLabelText('Start time'), { target: { value: `${year}-11-01T20:00` } });
+  fireEvent.change(screen.getByLabelText('End time'), { target: { value: `${year}-11-02T08:00` } });
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm booking' }));
+  expect(await screen.findByText('Booking #93 saved')).toBeVisible();
+  expect(fetch.mock.calls.filter(([url, options]) => url === '/api/bookings' && options?.method === 'POST')).toHaveLength(1);
 });

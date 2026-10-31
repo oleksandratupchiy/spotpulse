@@ -14,7 +14,8 @@ public class RoomCreateDto {
     @Size(max = 255)
     private String name;
     @NotNull
-    @Positive
+    @Positive(message = "A room must have space for at least 1 person.")
+    @Max(value = 15, message = "A room can hold up to 15 people.")
     private Integer capacity;
     @NotNull
     @DecimalMin("0.00")

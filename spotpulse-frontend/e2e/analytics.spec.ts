@@ -15,6 +15,7 @@ async function events(page: Page, name: string) {
 }
 test('analytics requires consent, tracks sanitized SPA actions once and can be withdrawn', async({page,fixture})=>{
   const scripts=await mockTag(page);
+  await login(page, 'admin');
   await page.goto('/app/spaces?q=private%40example.test');
   await expect(page.getByRole('button',{name:'Accept analytics'})).toBeVisible();
   expect(scripts()).toBe(0); expect(await events(page,'page_view')).toHaveLength(0);
@@ -33,7 +34,7 @@ test('analytics requires consent, tracks sanitized SPA actions once and can be w
   expect(commands).not.toContain('private@example.test'); expect(commands).not.toContain('/spaces/'+fixture.spaces[0]);
   await page.getByRole('button',{name:'Analytics preferences'}).click();
   await page.getByRole('button',{name:'Reject analytics'}).click();
-  await page.getByRole('link',{name:'View room & book'}).click();
+  await page.getByRole('link',{name:'Book a room'}).click();
   expect(await events(page,'page_view')).toHaveLength(2);
 });
 test('browser privacy preference blocks the mocked tracker even when consent was stored', async({page})=>{
@@ -41,13 +42,27 @@ test('browser privacy preference blocks the mocked tracker even when consent was
     localStorage.setItem('spotpulse.analytics-consent.v1','accepted');
     Object.defineProperty(navigator,'globalPrivacyControl',{value:true});
   });
-  const scripts=await mockTag(page); await page.goto('/app/spaces');
+  const scripts=await mockTag(page); await login(page, 'admin'); await page.goto('/app/spaces');
   await page.getByRole('button',{name:'Analytics preferences'}).click();
   await expect(page.getByRole('button',{name:'Accept analytics'})).toBeDisabled();
   expect(scripts()).toBe(0); expect(await events(page,'page_view')).toHaveLength(0);
 });
+
+test('stored consent preserves one page and space event on a direct detail entry and reload', async ({ page, fixture }) => {
+  await page.addInitScript(() => localStorage.setItem('spotpulse.analytics-consent.v1', 'accepted'));
+  const scripts = await mockTag(page);
+  await login(page, 'admin');
+  await page.goto(`/app/spaces/${fixture.spaces[0]}`);
+  await expect.poll(() => events(page, 'page_view')).toHaveLength(1);
+  await expect.poll(() => events(page, 'space_view')).toHaveLength(1);
+  expect(scripts()).toBe(1);
+  await page.reload();
+  await expect.poll(() => events(page, 'page_view')).toHaveLength(1);
+  await expect.poll(() => events(page, 'space_view')).toHaveLength(1);
+  expect(scripts()).toBe(2);
+});
 test('only confirmed booking and cancellation actions emit anonymous events',async({page,fixture})=>{
-  await mockTag(page); await login(page,'user'); await page.goto('/app/rooms/'+fixture.rooms[0]);
+  await mockTag(page); await login(page,'admin'); await page.goto('/app/rooms/'+fixture.rooms[0]);
   await page.getByRole('button',{name:'Accept analytics'}).click();
   await expect.poll(()=>events(page,'page_view')).toHaveLength(1);
   async function book() {
@@ -64,7 +79,38 @@ test('only confirmed booking and cancellation actions emit anonymous events',asy
   expect(await events(page,'booking_success')).toHaveLength(1);
   await page.getByRole('link',{name:'My bookings',exact:true}).first().click();
   await article.getByRole('button',{name:'Cancel booking',exact:true}).click();
-  await expect(article).toContainText('CANCELLED'); expect(await events(page,'booking_cancelled')).toHaveLength(1);
+  await expect(article).toContainText('Cancelled'); expect(await events(page,'booking_cancelled')).toHaveLength(1);
   const payload=JSON.stringify(await events(page,'booking_cancelled'));
   expect(payload).not.toContain(fixture.from); expect(payload).not.toMatch(/QA2|user@|booking_id|user_id|room_id/);
 });
+
+
+for (const actor of ['anonymous', 'user', 'owner', 'admin'] as const) {
+  test(`${actor} can reject, persist, accept and revoke analytics consent`, async ({ page }) => {
+    const scripts = await mockTag(page);
+    if (actor !== 'anonymous') await login(page, actor);
+    await page.goto('/app/spaces');
+    const prompt = page.getByRole('region', { name: 'Analytics consent' });
+    await expect(prompt).toBeInViewport();
+    expect(scripts()).toBe(0);
+    await page.getByRole('button', { name: 'Reject analytics' }).click();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Analytics preferences' })).toBeAttached();
+    await expect(prompt).toHaveCount(0);
+    expect(scripts()).toBe(0);
+    await page.getByRole('button', { name: 'Analytics preferences' }).click();
+    await page.getByRole('button', { name: 'Accept analytics' }).click();
+    await expect.poll(() => events(page, 'page_view')).toHaveLength(1);
+    expect(scripts()).toBe(1);
+    await page.reload();
+    await expect.poll(() => events(page, 'page_view')).toHaveLength(1);
+    await expect(prompt).toHaveCount(0);
+    expect(scripts()).toBe(2);
+    await page.getByRole('button', { name: 'Analytics preferences' }).click();
+    await page.getByRole('button', { name: 'Reject analytics' }).click();
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    expect(scripts()).toBe(2);
+    expect(await events(page, 'page_view')).toHaveLength(1);
+    expect(await events(page, 'space_search')).toHaveLength(0);
+  });
+}

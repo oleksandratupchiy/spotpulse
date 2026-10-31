@@ -90,6 +90,57 @@ class BackendStabilizationTests {
     }
 
     @Test
+    void bookingDurationLimitAppliesToCreatesUpdatesAndCancelledBookings() {
+        LocalDateTime evening = start.withHour(20);
+        BookingDto saved = bookings.create(booking(roomId, evening, evening.plusHours(12), null));
+        assertThat(saved.getEndTime()).isEqualTo(evening.plusHours(12));
+        assertThat(bookings.update(saved.getId(), booking(roomId, evening, evening.plusHours(12), null)).getEndTime())
+                .isEqualTo(evening.plusHours(12));
+        for (BookingStatus status : BookingStatus.values()) {
+            BookingCreateDto tooLong = booking(roomId, evening, evening.plusHours(12).plusNanos(1), status);
+            assertThatThrownBy(() -> bookings.create(tooLong)).isInstanceOf(ConstraintViolationException.class)
+                    .hasMessageContaining("Bookings can last up to 12 hours.");
+            assertThatThrownBy(() -> bookings.update(saved.getId(), tooLong)).isInstanceOf(ConstraintViolationException.class)
+                    .hasMessageContaining("Bookings can last up to 12 hours.");
+        }
+        assertThat(bookingRepository.count()).isEqualTo(1);
+        assertThat(bookings.getById(saved.getId()).getEndTime()).isEqualTo(evening.plusHours(12));
+    }
+
+    @Test
+    void roomCapacityLimitAppliesToCreatesAndUpdates() {
+        Long spaceId = rooms.getById(roomId).getSpaceId();
+        var maximum = new RoomCreateDto("Team room", 15, BigDecimal.TEN, spaceId);
+        var saved = rooms.create(maximum);
+        assertThat(saved.getCapacity()).isEqualTo(15);
+        assertThat(rooms.update(saved.getId(), maximum).getCapacity()).isEqualTo(15);
+        var tooLarge = new RoomCreateDto("Team room", 16, BigDecimal.TEN, spaceId);
+        assertThatThrownBy(() -> rooms.create(tooLarge)).isInstanceOf(ConstraintViolationException.class)
+                .hasMessageContaining("A room can hold up to 15 people.");
+        assertThatThrownBy(() -> rooms.update(saved.getId(), tooLarge)).isInstanceOf(ConstraintViolationException.class)
+                .hasMessageContaining("A room can hold up to 15 people.");
+        assertThat(rooms.getById(saved.getId()).getCapacity()).isEqualTo(15);
+    }
+
+    @Test
+    void apiRejectsExcessiveDurationAndCapacityOnCreateAndUpdate() throws Exception {
+        var saved = bookings.create(booking());
+        var tooLong = bookingJson(roomId, userId, start, start.plusHours(12).plusMinutes(1));
+        for (var request : List.of(post("/api/bookings"), put("/api/bookings/{id}", saved.getId()))) {
+            mvc.perform(request.contentType(MediaType.APPLICATION_JSON).content(tooLong))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("errors[*].message", org.hamcrest.Matchers.hasItem("Bookings can last up to 12 hours.")));
+        }
+        var tooLarge = "{\"name\":\"Team room\",\"capacity\":16,\"hourlyRate\":10,\"spaceId\":%d}"
+                .formatted(rooms.getById(roomId).getSpaceId());
+        for (var request : List.of(post("/api/rooms"), put("/api/rooms/{id}", roomId))) {
+            mvc.perform(request.contentType(MediaType.APPLICATION_JSON).content(tooLarge))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("errors[*].message", org.hamcrest.Matchers.hasItem("A room can hold up to 15 people.")));
+        }
+    }
+
+    @Test
     void successfulBookingPreservesDefaultStatusAndResponseFields() {
         BookingDto saved = bookings.create(booking());
         assertThat(saved.getId()).isNotNull();

@@ -24,9 +24,13 @@ public class BookingNotificationListener {
                 outcome(event, "skipped", recipient.skipReason());
                 return;
             }
-            client.send(recipient.chatId(), "SpotPulse booking #" + event.bookingId() + " "
-                    + event.status().name().toLowerCase(java.util.Locale.ROOT) + ".\n"
-                    + event.startTime() + " – " + event.endTime());
+            var format = java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu, HH:mm", java.util.Locale.ENGLISH);
+            var cancelled = event.status() == com.spotpulse.model.enums.BookingStatus.CANCELLED;
+            client.send(recipient.chatId(), "Your booking for " + displayName(event.roomName())
+                    + (cancelled ? " was cancelled." : " is confirmed.") + "\n"
+                    + displayName(event.spaceName()) + "\n"
+                    + event.startTime().format(format) + " – " + event.endTime().format(format)
+                    + "\nTimes as booked · " + (cancelled ? "Cancelled" : "Confirmed"));
             outcome(event, "sent", "none");
         } catch (TelegramClient.Failure failure) {
             outcome(event, "failed", switch (failure.status) {
@@ -40,6 +44,11 @@ public class BookingNotificationListener {
             // Never log exception messages/causes: HTTP errors may contain credential URLs.
             outcome(event, "failed", "internal_error");
         }
+    }
+
+    // Names are user supplied; keep each on one line in plain-text Telegram messages.
+    private String displayName(String name) {
+        return name.replaceAll("[\\p{Cc}\\p{Cf}\\s]+", " ").strip();
     }
 
     private void outcome(BookingNotification event, String outcome, String category) {

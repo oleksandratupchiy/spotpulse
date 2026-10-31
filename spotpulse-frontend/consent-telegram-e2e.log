@@ -1,0 +1,19 @@
+
+> spotpulse-frontend@1.0.0 e2e
+> playwright test e2e/analytics.spec.ts
+
+
+Running 8 tests using 1 worker
+
+(node:12728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\analytics.spec.ts:16:1 › analytics requires consent, tracks sanitized SPA actions once and can be withdrawn (5.9s)
+  ok 2 [chromium] › e2e\analytics.spec.ts:40:1 › browser privacy preference blocks the mocked tracker even when consent was stored (2.4s)
+  ok 3 [chromium] › e2e\analytics.spec.ts:51:1 › stored consent preserves one page and space event on a direct detail entry and reload (2.3s)
+  ok 4 [chromium] › e2e\analytics.spec.ts:64:1 › only confirmed booking and cancellation actions emit anonymous events (5.4s)
+  ok 5 [chromium] › e2e\analytics.spec.ts:89:3 › anonymous can reject, persist, accept and revoke analytics consent (4.6s)
+  ok 6 [chromium] › e2e\analytics.spec.ts:89:3 › user can reject, persist, accept and revoke analytics consent (5.4s)
+  ok 7 [chromium] › e2e\analytics.spec.ts:89:3 › owner can reject, persist, accept and revoke analytics consent (4.2s)
+  ok 8 [chromium] › e2e\analytics.spec.ts:89:3 › admin can reject, persist, accept and revoke analytics consent (4.3s)
+
+  8 passed (1.2m)

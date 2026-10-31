@@ -5,6 +5,9 @@ COPY spotpulse-frontend/package.json spotpulse-frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY spotpulse-frontend/index.html spotpulse-frontend/tsconfig.json spotpulse-frontend/vite.config.ts ./
 COPY spotpulse-frontend/src/ ./src/
+# Both renderers consume the same licensed fonts and UI tokens.
+COPY spotpulse-backend/src/main/resources/static/css/design-tokens.css spotpulse-backend/src/main/resources/static/css/fonts.css spotpulse-backend/src/main/resources/static/css/ui-controls.css /build/spotpulse-backend/src/main/resources/static/css/
+COPY spotpulse-backend/src/main/resources/static/css/fonts/ /build/spotpulse-backend/src/main/resources/static/css/fonts/
 ARG VITE_GA_MEASUREMENT_ID=""
 RUN VITE_GA_MEASUREMENT_ID="$VITE_GA_MEASUREMENT_ID" npm run build:deployment
 

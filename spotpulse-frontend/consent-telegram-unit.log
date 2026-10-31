@@ -1,0 +1,17 @@
+
+> spotpulse-frontend@1.0.0 test
+> vitest run
+
+
+ RUN  v5.0.5 C:/Users/Alexandra T/IdeaProjects/spotpulse/spotpulse-frontend
+
+
+ Test Files  13 passed (13)
+      Tests  133 passed (133)
+   Start at  19:41:41
+   Duration  199.53s (environment 43%, tests 34%, setup 14%, import 8%, transform 1%)
+
+Environment  jsdom was created 13 times · 159.45s total, 43% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

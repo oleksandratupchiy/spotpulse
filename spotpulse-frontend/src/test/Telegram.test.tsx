@@ -1,6 +1,25 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TelegramAccount } from '../Telegram';
+
+test('never enables Connect while initial availability is unknown or unavailable', async () => {
+  let respond!: (response: Response) => void;
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(resolve => { respond = resolve; }));
+  render(<TelegramAccount/>);
+  expect(screen.queryByRole('button', { name: 'Connect Telegram' })).not.toBeInTheDocument();
+  await act(async () => respond(new Response(JSON.stringify({ configured: true, available: false, connected: false, expiresAt: null, bookingNotificationsEnabled: true }))));
+  expect(screen.getByRole('button', { name: 'Connect Telegram' })).toBeDisabled();
+  expect(screen.getByText('Telegram is starting or temporarily unavailable. Please try again shortly.')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Connect Telegram' }));
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test('failed initial status never exposes an enabled Connect button', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 503 }));
+  render(<TelegramAccount/>);
+  expect(await screen.findByRole('alert')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Connect Telegram' })).not.toBeInTheDocument();
+});
 
 test('connect opens the actual bot link and disconnect uses session CSRF', async () => {
   let connected = false;
