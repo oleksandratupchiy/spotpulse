@@ -165,11 +165,14 @@ class SpaceAutocompleteTests {
                 .andExpect(content().string(containsString("role=\"combobox\"")))
                 .andExpect(content().string(containsString("aria-controls=\"space-search-results\"")))
                 .andExpect(content().string(containsString("role=\"listbox\"")))
-                .andExpect(content().string(containsString("jquery-3.7.1.min.js")))
+                .andExpect(content().string(containsString("src=\"/js/vendor/jquery/jquery.min.js\"")))
                 .andExpect(content().string(containsString("/js/space-autocomplete.js")))
                 .andExpect(content().string(containsString("href=\"/spaces/" + hubId + "\"")))
                 .andExpect(content().string(containsString("href=\"/spaces/" + hubId + "/edit\"")))
                 .andExpect(content().string(containsString("action=\"/spaces/" + hubId + "/delete\"")));
+        mvc.perform(get("/js/vendor/jquery/jquery.min.js")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("jQuery")))
+                .andExpect(content().string(containsString("ajaxSettings")));
         mvc.perform(get("/js/space-autocomplete.js")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("$.ajax(")));
     }
