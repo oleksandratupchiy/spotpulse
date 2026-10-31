@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
+import { usageAnalytics } from '../usageAnalytics';
 
 const space = { id: 3, name: 'River Hub', city: 'Kyiv', address: 'River Street 7', description: 'Quiet work by the river', imageUrl: null, contactEmail: 'hello@river.test', rooms: [] };
 const room = { id: 8, name: 'Oak room', capacity: 6, hourlyRate: 150, spaceId: 3, spaceName: 'River Hub' };
@@ -63,12 +64,14 @@ test('follows nextLink exactly and returns to the previous page', async () => {
   expect(await screen.findByRole('heading', { name: 'River Hub' })).toBeVisible();
 });
 test('submits one supported search mode and resets pagination', async () => {
+  const analytics = vi.spyOn(usageAnalytics, 'search');
   const fetch = mockApi(); open();
   await screen.findByText('River Street 7');
   await userEvent.selectOptions(screen.getByLabelText('Search by'), 'city');
   await userEvent.type(screen.getByLabelText('Search spaces'), 'Kyiv');
   await userEvent.click(screen.getByRole('button', { name: 'Search' }));
   await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/spaces?skip=0&limit=6&city=Kyiv', expect.anything()));
+  expect(analytics).toHaveBeenCalledExactlyOnceWith('city', true);
 });
 test('navigates from space list to dynamic details and room', async () => {
   mockApi(); open();
@@ -104,6 +107,7 @@ test('rejects reversed and past time intervals locally', async () => {
   expect(fetch.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
 });
 test('posts DTO fields and displays confirmed booking response', async () => {
+  const analytics = vi.spyOn(usageAnalytics, 'bookingSuccess');
   const fetch = mockApi((url, options) => url === '/api/bookings' ? { status: 201, body: { ...JSON.parse(String(options?.body)), id: 91, roomName: room.name, userName: existingUser.name, status: 'CONFIRMED' } } : undefined);
   open('/rooms/8'); const user = await fillBooking();
   await user.click(screen.getByRole('button', { name: 'Confirm booking' }));
@@ -112,14 +116,17 @@ test('posts DTO fields and displays confirmed booking response', async () => {
   const post = fetch.mock.calls.find(([, options]) => options?.method === 'POST')!;
   expect(JSON.parse(String(post[1]?.body))).toEqual({ roomId: 8, startTime: expect.stringContaining('T10:00'), endTime: expect.stringContaining('T11:00') });
   expect(screen.getByRole('button', { name: 'Booking confirmed' })).toBeDisabled();
+  expect(analytics).toHaveBeenCalledExactlyOnceWith();
 });
 test('displays HTTP 409 without claiming a booking succeeded', async () => {
+  const analytics = vi.spyOn(usageAnalytics, 'bookingSuccess');
   mockApi(url => url === '/api/bookings' ? { status: 409, body: { detail: 'Room is already booked for this time interval' } } : undefined);
   open('/rooms/8'); const user = await fillBooking();
   await user.click(screen.getByRole('button', { name: 'Confirm booking' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Room is already booked');
   expect(screen.queryByText(/Booking #/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Confirm booking' })).toBeEnabled();
+  expect(analytics).not.toHaveBeenCalled();
 });
 test('displays backend field validation errors', async () => {
   mockApi(url => url === '/api/bookings' ? { status: 400, body: { detail: 'Invalid request input', errors: [{ field: 'startTime', message: 'must be a date in the present or in the future' }] } } : undefined);

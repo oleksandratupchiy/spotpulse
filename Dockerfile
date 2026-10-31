@@ -1,11 +1,12 @@
-# Build context: repository root. No credentials are accepted as build arguments.
+# Build context: repository root. Only the PUBLIC analytics ID is a build argument; never pass credentials.
 FROM node:24-bookworm-slim AS frontend
 WORKDIR /build/spotpulse-frontend
 COPY spotpulse-frontend/package.json spotpulse-frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY spotpulse-frontend/index.html spotpulse-frontend/tsconfig.json spotpulse-frontend/vite.config.ts ./
 COPY spotpulse-frontend/src/ ./src/
-RUN npm run build:deployment
+ARG VITE_GA_MEASUREMENT_ID=""
+RUN VITE_GA_MEASUREMENT_ID="$VITE_GA_MEASUREMENT_ID" npm run build:deployment
 
 FROM eclipse-temurin:25-jdk AS backend
 WORKDIR /build/spotpulse-backend

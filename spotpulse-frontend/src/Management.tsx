@@ -6,6 +6,7 @@ import { ImagePicker } from './ImagePicker';
 import { attachSpaceImage } from './images';
 import { useAuth } from './Auth';
 import { PremiumAdministration, SpacePremium } from './Premium';
+import { usageAnalytics } from './usageAnalytics';
 
 export function Bookings({ managed = false }: { managed?: boolean }) {
   const page = usePage(`/api/${managed ? 'management/' : ''}bookings?skip=0&limit=10`);
@@ -21,7 +22,11 @@ export function Bookings({ managed = false }: { managed?: boolean }) {
         {managed && <p>Booked by: {booking.userName}</p>}
         <button className="btn btn-outline-danger align-self-start" disabled={pending !== undefined || booking.status === 'CANCELLED' || new Date(booking.startTime) <= new Date()} onClick={async () => {
           setPending(booking.id); setFailure(undefined);
-          try { await request(`/api/bookings/${booking.id}/cancel`, { method: 'POST' }); setRefresh(v => v + 1); }
+          try {
+            const saved = await request<Booking>(`/api/bookings/${booking.id}/cancel`, { method: 'POST' });
+            if (saved.status === 'CANCELLED') usageAnalytics.bookingCancelled();
+            setRefresh(v => v + 1);
+          }
           catch (error) { setFailure(error as Error); } finally { setPending(undefined); }
         }}>{pending === booking.id ? 'Cancelling…' : 'Cancel booking'}</button></div></article>)}</div>
       <Pagination page={data} previous={page.previous} onPrevious={page.back} onNext={() => page.next(data.nextLink)}/>

@@ -111,7 +111,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Build the complete non-root image (no publish or deploy)
-        run: docker build --file Dockerfile --tag spotpulse:ci .
+        # Synthetic public ID exercises ARG wiring; this image is never deployed and no tag is loaded here.
+        run: docker build --build-arg VITE_GA_MEASUREMENT_ID=G-TEST000000 --file Dockerfile --tag spotpulse:ci .
       - name: Check runtime JVM and non-root user without starting the application
         run: |
           docker run --rm --entrypoint java spotpulse:ci --version

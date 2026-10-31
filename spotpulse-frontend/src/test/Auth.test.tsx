@@ -2,6 +2,7 @@ import { configure, fireEvent, render, screen, waitFor } from '@testing-library/
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
+import { usageAnalytics } from '../usageAnalytics';
 
 configure({ asyncUtilTimeout: 10_000 });
 const space = { id: 3, name: 'Managed Hub', city: 'Kyiv', address: 'Street 1', description: '', imageUrl: null, contactEmail: '', latitude: null, longitude: null, rooms: [{ id: 8, name: 'Oak', capacity: 4, hourlyRate: 10, spaceId: 3, spaceName: 'Managed Hub' }] };
@@ -14,7 +15,7 @@ function mockApi(role: string | null, override?: (url: string, options?: Request
     if (url === '/api/auth/csrf') return new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'masked-test-token' }));
     if (url === '/api/account/telegram') return new Response(JSON.stringify({ configured: false, available: false, connected: false, expiresAt: null, bookingNotificationsEnabled: true }));
     if (url === '/api/auth/logout') return new Response(null, { status: 204 });
-    if (url.endsWith('/cancel')) { cancelled = true; return new Response('{}'); }
+    if (url.endsWith('/cancel')) { cancelled = true; return new Response(JSON.stringify({ status: 'CANCELLED' })); }
     if (url.startsWith('/api/users')) return new Response(JSON.stringify(page([{ id: 42, name: 'Other member', email: 'other@example.test', role: 'USER' }])));
     if (url.startsWith('/api/bookings?') || url.startsWith('/api/management/bookings?')) return new Response(JSON.stringify(page([{ id: 9, roomId: 8, roomName: 'Oak', userId: 1, userName: 'Signed member', startTime: `${new Date().getFullYear()+1}-01-01T10:00:00`, endTime: `${new Date().getFullYear()+1}-01-01T11:00:00`, status: cancelled ? 'CANCELLED' : 'CONFIRMED' }])));
     if (url === '/api/management/spaces/3' || (url === '/api/spaces' && options?.method === 'POST')) return new Response(JSON.stringify(space));
@@ -80,11 +81,20 @@ test('foreign-space denial from the backend is displayed instead of allowing edi
 });
 
 test('personal booking cancellation updates the list through authenticated CSRF POST', async () => {
+  const analytics = vi.spyOn(usageAnalytics, 'bookingCancelled');
   const fetch = mockApi('USER'); open('/bookings');
   await userEvent.click(await screen.findByRole('button', { name: 'Cancel booking' }));
   expect(await screen.findByText('Status: CANCELLED')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Cancel booking' })).toBeDisabled();
   expect(fetch).toHaveBeenCalledWith('/api/bookings/9/cancel', expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'masked-test-token' }) }));
+  expect(analytics).toHaveBeenCalledExactlyOnceWith();
+});
+
+test('failed cancellation does not emit an analytics success', async () => {
+  const analytics = vi.spyOn(usageAnalytics, 'bookingCancelled');
+  mockApi('USER', url => url.endsWith('/cancel') ? new Response(JSON.stringify({detail:'Cannot cancel'}),{status:409}) : undefined);
+  open('/bookings'); await userEvent.click(await screen.findByRole('button',{name:'Cancel booking'}));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Cannot cancel'); expect(analytics).not.toHaveBeenCalled();
 });
 
 test('ADMIN can submit explicit role changes and ownership assignment', async () => {

@@ -7,11 +7,13 @@ import { AnalyticsBoundary, Failure, Loading, MapBoundary, NotFound, Pagination,
 
 import { PremiumBadge } from './Premium';
 import { AvailabilityPanel } from './AvailabilityPanel';
+import { AnalyticsConsent } from './AnalyticsConsent';
+import { usageAnalytics } from './usageAnalytics';
 
 const Analytics = lazy(() => import('./Analytics'));
 const SpacesMap = lazy(() => import('./SpacesMap'));
 
-export default function App() { return <AuthProvider><AppLayout/></AuthProvider>; }
+export default function App() { return <AuthProvider><AnalyticsConsent/><AppLayout/></AuthProvider>; }
 
 function AppLayout() {
   const location = useLocation();
@@ -33,6 +35,7 @@ function Spaces() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setParams({ mode: String(form.get('mode')), q: String(form.get('q')).trim() });
+    usageAnalytics.search(mode === 'city' ? 'city' : 'text', !!String(form.get('q')).trim());
   }
   return <><section className="hero mb-4"><p className="eyebrow">WORK. MEET. CONNECT.</p><h1>Find your space to focus.</h1><p className="lead">Explore coworking spaces and book a meeting room for your next session.</p></section><form onSubmit={search} className="search-panel row g-3 align-items-end mb-5"><div className="col-sm-4 col-lg-3"><label htmlFor="mode" className="form-label">Search by</label><select id="mode" name="mode" className="form-select" value={mode} onChange={e => setParams({ mode: e.target.value, q: query }, { replace: true })}><option value="search">Name, city or address</option><option value="city">Exact city</option></select></div><div className="col-sm-8 col-lg-7"><label htmlFor="query" className="form-label">Search spaces</label><input id="query" name="q" className="form-control" type="search" maxLength={255} value={query} onChange={e => setParams({ mode, q: e.target.value }, { replace: true })} placeholder="Where would you like to work?"/></div><div className="col-lg-2"><button className="btn btn-primary w-100">Search</button></div></form><div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4"><h2 className="h4 mb-0">Discover coworking spaces</h2><button type="button" className="btn btn-outline-primary" aria-pressed={showMap} onClick={() => setShowMap(v => !v)}>{showMap ? 'Hide map' : 'Show map'}</button></div>{showMap && <MapBoundary><Suspense fallback={<Loading/>}><SpacesMap filter={filter}/></Suspense></MapBoundary>}{error ? <Failure error={error} retry={() => setRefresh(r => r + 1)}/> : !data ? <Loading/> : <>{data.items.length === 0 && <p role="status">No spaces found. Try a different search.</p>}<div className="row g-4">{data.items.map(space => <article key={space.id} className="col-md-6 col-xl-4"><div className="card h-100 overflow-hidden"><SpaceImage url={space.imageUrl} name={space.name}/><div className="card-body d-flex flex-column"><p className="eyebrow">{space.city}</p><PremiumBadge space={space}/><h3 className="h5"><Link to={`/spaces/${space.id}`}>{space.name}</Link></h3><p className="text-secondary">{space.address}</p><Link to={`/spaces/${space.id}`} className="btn btn-outline-primary mt-auto align-self-start">View space</Link></div></div></article>)}</div><Pagination page={data} previous={paging.previous} onPrevious={paging.back} onNext={() => paging.next(data.nextLink)}/></>}</>;
 }
@@ -41,6 +44,7 @@ function SpaceDetails() {
   const { id } = useParams();
   const [refresh, setRefresh] = useState(0);
   const { data: space, error } = useResource<Space>(`/api/spaces/${encodeURIComponent(id!)}`, refresh);
+  useEffect(() => { if (space) usageAnalytics.spaceView(); }, [space]);
   return <><Link to="/spaces" className="back-link">← All spaces</Link>{error ? <Failure error={error} retry={() => setRefresh(r => r + 1)}/> : !space ? <Loading/> : <><div className="row g-4 my-2"><div className="col-lg-6"><SpaceImage key={space.imageUrl} url={space.imageUrl} name={space.name}/></div><section className="col-lg-6"><p className="eyebrow">{space.city}</p><PremiumBadge space={space}/><h1>{space.name}</h1><p>{space.address}</p><p className="description">{space.description || 'No description provided.'}</p>{space.contactEmail ? <p>Contact: <a href={`mailto:${space.contactEmail}`}>{space.contactEmail}</a></p> : <p className="text-secondary">No contact email provided.</p>}</section></div><h2 className="h3 mt-5">Meeting rooms</h2><Rooms spaceId={space.id}/></>}</>;
 }
 function Rooms({ spaceId }: { spaceId: number }) {
@@ -85,7 +89,9 @@ function BookingForm({ room }: { room: Room }) {
     if (problems.length) return;
     setPending(true);
     try {
-      setBooking(await request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ roomId: room.id, startTime: start, endTime: end }) }));
+      const saved = await request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ roomId: room.id, startTime: start, endTime: end }) });
+      if (saved.status === 'CONFIRMED') usageAnalytics.bookingSuccess();
+      setBooking(saved);
     } catch (e) { setError(e as Error); }
     finally { setPending(false); }
   }
