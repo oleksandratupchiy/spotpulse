@@ -36,7 +36,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ''
       SPOTPULSE_IMAGE_STORAGE: local
       SPOTPULSE_BOOTSTRAP_ADMIN_ID: ''
-      # Only BackendStabilizationTests opts into this isolated runner-owned database.
+      # BackendStabilizationTests and AvailabilityAlertTests use this isolated runner-owned database.
       SPOTPULSE_TEST_DATABASE_URL: jdbc:postgresql://localhost:5432/spotpulse_ci_test
       SPOTPULSE_TEST_DATABASE_DRIVER: org.postgresql.Driver
       SPOTPULSE_TEST_DATABASE_USER: spotpulse_ci

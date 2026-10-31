@@ -14,8 +14,11 @@ public interface AvailabilityAlertRepository extends JpaRepository<AvailabilityA
     Optional<Long> roomId(@Param("id") Long id);
     Optional<AvailabilityAlert> findByUserIdAndRoomIdAndStartTimeAndEndTimeAndActiveMarker(
             Long userId, Long roomId, LocalDateTime start, LocalDateTime end, String marker);
-    @Query("select a from AvailabilityAlert a where a.user.id = :userId and (:roomId is null or a.room.id = :roomId) "
-            + "and (:start is null or a.startTime = :start) and (:end is null or a.endTime = :end) "
+    // Each occurrence becomes a separate JDBC parameter. PostgreSQL needs a SQL type on
+    // the null checks too, especially for LocalDateTime (the driver's unspecified timestamp OID).
+    @Query("select a from AvailabilityAlert a where a.user.id = :userId and (cast(:roomId as Long) is null or a.room.id = :roomId) "
+            + "and (cast(:start as LocalDateTime) is null or a.startTime = :start) "
+            + "and (cast(:end as LocalDateTime) is null or a.endTime = :end) "
             + "and (:activeOnly = false or (a.activeMarker is not null and a.startTime > :now)) order by a.createdAt desc, a.id desc")
     Page<AvailabilityAlert> own(@Param("userId") Long userId, @Param("roomId") Long roomId,
             @Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("activeOnly") boolean activeOnly,

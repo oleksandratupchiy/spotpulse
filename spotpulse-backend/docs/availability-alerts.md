@@ -89,8 +89,22 @@ disable only this feature's worker while inspecting persisted rows, use
 5. Cancel an alert from the room or account page; it becomes CANCELLED. After its start time,
    an uncancelled alert becomes EXPIRED. A still-overlapping booking keeps the watch ACTIVE.
 
-`AvailabilityAlertTests` uses isolated H2 and a mocked Telegram client to assert success,
-deduplication, retries, outages, after-commit behavior and concurrency without Bot API calls.
+`AvailabilityAlertTests` uses isolated H2 by default and the dedicated PostgreSQL service in
+CI, with a mocked Telegram client to assert success, deduplication, retries, outages,
+after-commit behavior and concurrency without Bot API calls. It also checks every combination
+of optional list filters, ownership, ordering, count queries and page/offset pagination.
+To run it on a fresh disposable PostgreSQL database locally, set `SPOTPULSE_TEST_DATABASE_URL`
+(database name must end in `_test`), `SPOTPULSE_TEST_DATABASE_DRIVER=org.postgresql.Driver`,
+`SPOTPULSE_TEST_DATABASE_DIALECT=org.hibernate.dialect.PostgreSQLDialect`,
+`SPOTPULSE_TEST_DATABASE_USER` and `SPOTPULSE_TEST_DATABASE_PASSWORD`, then run
+`./mvnw -B -ntp -Dtest=AvailabilityAlertTests test` from `spotpulse-backend`.
+The test schema uses `create-drop`; never supply an existing application database.
+
+The list query explicitly casts nullable filter parameters in its `IS NULL` predicates.
+Hibernate generates distinct JDBC placeholders for each occurrence of a named parameter;
+the timestamp equality occurrence cannot type the separate null-check occurrence for
+PostgreSQL. In the original generated list SQL, `$4` was the `start` null check and `$6`
+was the `end` null check. H2 alone did not catch this PostgreSQL parsing failure.
 `LocalDatabasePersistenceTests` starts three real JVMs against its own temporary H2 database
 and verifies both ACTIVE subscriptions and READY retry metadata across two restarts. Automated
 contexts globally disable live Telegram and scheduled alert dispatch; focused tests invoke
